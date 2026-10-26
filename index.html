@@ -95,8 +95,8 @@
           </div>
           <div class="flex items-center gap-3">
             <div class="text-right">
-              <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Balance $VALOR Real</span>
-              <div id="valorBalanceTokens" class="font-bold text-amber-400 text-base">0 $VALOR</div>
+              <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Balance y Holding USD</span>
+              <div id="valorBalanceTokens" class="font-bold text-amber-400 text-base">0 $VALOR ($0.00 USD)</div>
             </div>
             <div id="tierBadge" class="bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold">
               Tier 0 (1x EXP)
@@ -217,7 +217,7 @@
     </div>
   </footer>
 
-  <!-- Firebase & Real Solana Token Scanner -->
+  <!-- Firebase & Real Solana Token + USD Price Scanner -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -241,6 +241,8 @@
     let userState = {
       wallet: null,
       tokenBalance: 0,
+      tokenPriceUSD: 0,
+      holdingUSD: 0,
       tier: 0,
       multiplier: 1,
       maxEnergy: 12,
@@ -269,7 +271,8 @@
         document.getElementById("walletBtnText").innerText = address.substring(0, 4) + "..." + address.substring(address.length - 4);
         document.getElementById("walletDisplay").innerText = address;
 
-        // Escaneo real automático en la blockchain de Solana
+        // Consultar precio y balance en tiempo real
+        await fetchTokenPriceUSD();
         await fetchWalletTokenBalance(address);
         await loadCloudState();
         fetchLeaderboard();
@@ -277,6 +280,21 @@
         console.error("Wallet connection error:", err);
       }
     };
+
+    async function fetchTokenPriceUSD() {
+      try {
+        const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${TOKEN_CA}`);
+        const data = await res.json();
+        if (data.pairs && data.pairs.length > 0) {
+          userState.tokenPriceUSD = parseFloat(data.pairs[0].priceUsd || 0);
+        } else {
+          userState.tokenPriceUSD = 0;
+        }
+      } catch (e) {
+        console.warn("Error consultando precio USD:", e);
+        userState.tokenPriceUSD = 0;
+      }
+    }
 
     async function fetchWalletTokenBalance(walletAddress) {
       try {
@@ -310,28 +328,35 @@
         }
 
         userState.tokenBalance = balance;
+        userState.holdingUSD = balance * userState.tokenPriceUSD;
         recalculateTier();
       } catch (e) {
         console.warn("Error leyendo la blockchain de Solana:", e);
         userState.tokenBalance = 0;
+        userState.holdingUSD = 0;
         recalculateTier();
       }
     }
 
     function recalculateTier() {
-      const bal = userState.tokenBalance;
+      const usd = userState.holdingUSD;
 
-      // Rangos ajustados de forma realista para la economía del token en Pump.fun
-      if (bal >= 1000000) {
+      // Rangos competitivos basados en USD real en micro-cap:
+      // Tier 4: $50+ USD -> 25x EXP
+      // Tier 3: $15 a $49.99 USD -> 10x EXP
+      // Tier 2: $5 a $14.99 USD -> 5x EXP
+      // Tier 1: $1 a $4.99 USD -> 2x EXP
+      // Tier 0: Menos de $1 USD -> 1x EXP
+      if (usd >= 50) {
         userState.tier = 4;
         userState.multiplier = 25;
-      } else if (bal >= 500000) {
+      } else if (usd >= 15) {
         userState.tier = 3;
         userState.multiplier = 10;
-      } else if (bal >= 100000) {
+      } else if (usd >= 5) {
         userState.tier = 2;
         userState.multiplier = 5;
-      } else if (bal >= 10000) {
+      } else if (usd >= 1) {
         userState.tier = 1;
         userState.multiplier = 2;
       } else {
@@ -462,7 +487,8 @@
       const expPercent = Math.min(100, (userState.exp / userState.expToNextLevel) * 100);
       document.getElementById("expProgressBar").style.width = `${expPercent}%`;
 
-      document.getElementById("valorBalanceTokens").innerText = `${userState.tokenBalance.toLocaleString()} $VALOR`;
+      const usdFormatted = userState.holdingUSD.toFixed(2);
+      document.getElementById("valorBalanceTokens").innerText = `${userState.tokenBalance.toLocaleString()} $VALOR ($${usdFormatted} USD)`;
       
       const badge = document.getElementById("tierBadge");
       badge.innerText = `Tier ${userState.tier} (${userState.multiplier}x EXP)`;
