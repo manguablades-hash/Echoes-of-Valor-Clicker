@@ -95,13 +95,25 @@
           </div>
           <div class="flex items-center gap-3">
             <div class="text-right">
-              <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Balance $VALOR</span>
-              <div id="valorBalanceTokens" class="font-bold text-amber-400 text-base">0 $VALOR</div>
-            </div>
-            <div id="tierBadge" class="bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold">
-              Tier 0 (1x EXP)
+              <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Multiplicador Activo</span>
+              <div id="tierBadgeText" class="font-bold text-amber-400 text-base">Tier 0 (1x EXP)</div>
             </div>
           </div>
+        </div>
+
+        <!-- Tier Selector Bar -->
+        <div class="mt-4 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
+          <label class="text-xs text-slate-400 flex items-center gap-1 font-semibold">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+            Seleccionar Rango / Tier de Holding:
+          </label>
+          <select id="tierSelector" onchange="changeTier(this.value)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-amber-400 font-bold focus:outline-none focus:border-amber-500">
+            <option value="0">Tier 0 (0 $VALOR - 1x EXP)</option>
+            <option value="1">Tier 1 (1,000+ $VALOR - 2x EXP)</option>
+            <option value="2">Tier 2 (5,000+ $VALOR - 5x EXP)</option>
+            <option value="3">Tier 3 (20,000+ $VALOR - 10x EXP)</option>
+            <option value="4">Tier 4 (50,000+ $VALOR - 25x EXP)</option>
+          </select>
         </div>
       </div>
 
@@ -237,7 +249,6 @@
 
     let userState = {
       wallet: null,
-      tokenBalance: 0,
       tier: 0,
       multiplier: 1,
       maxEnergy: 12,
@@ -254,7 +265,7 @@
     window.connectWallet = async function() {
       try {
         if (!window.ethereum) {
-          alert("MetaMask no está instalada. Por favor instala la extensión de MetaMask o abre esta página desde la app móvil de MetaMask.");
+          alert("MetaMask no está instalada. Por favor instala la extensión o abre esta página desde la app de MetaMask.");
           return;
         }
 
@@ -268,7 +279,6 @@
         document.getElementById("walletBtnText").innerText = address.substring(0, 6) + "..." + address.substring(address.length - 4);
         document.getElementById("walletDisplay").innerText = address;
 
-        // Cargar datos sincronizados en la nube por esa Wallet
         await loadCloudState();
         fetchLeaderboard();
       } catch (err) {
@@ -289,7 +299,7 @@
           userState.tickets = data.tickets || (userState.level - 1);
           userState.currentEnergy = data.currentEnergy !== undefined ? data.currentEnergy : 12;
           userState.lastEnergyUpdate = data.lastEnergyUpdate || Date.now();
-          userState.tier = data.tier || 0;
+          userState.tier = data.tier !== undefined ? data.tier : 0;
           userState.expToNextLevel = userState.level * 100;
         } else {
           await saveCloudState();
@@ -297,8 +307,11 @@
       } catch (e) {
         console.warn("Error loading cloud state:", e);
       }
+      
+      applyTierSettings(userState.tier);
+      document.getElementById("tierSelector").value = userState.tier;
       checkEnergyRegen();
-      recalculateTier();
+      updateUI();
     }
 
     async function saveCloudState() {
@@ -321,6 +334,36 @@
       }
     }
 
+    window.changeTier = function(tierVal) {
+      const t = parseInt(tierVal);
+      userState.tier = t;
+      applyTierSettings(t);
+      saveCloudState();
+      updateUI();
+      fetchLeaderboard();
+    };
+
+    function applyTierSettings(t) {
+      if (t === 4) {
+        userState.multiplier = 25;
+      } else if (t === 3) {
+        userState.multiplier = 10;
+      } else if (t === 2) {
+        userState.multiplier = 5;
+      } else if (t === 1) {
+        userState.multiplier = 2;
+      } else {
+        userState.tier = 0;
+        userState.multiplier = 1;
+      }
+
+      userState.maxEnergy = 12;
+
+      if (userState.currentEnergy > userState.maxEnergy) {
+        userState.currentEnergy = userState.maxEnergy;
+      }
+    }
+
     function checkEnergyRegen() {
       const now = Date.now();
       const elapsedMs = now - userState.lastEnergyUpdate;
@@ -334,38 +377,6 @@
       }
     }
 
-    function recalculateTier() {
-      const bal = userState.tokenBalance;
-
-      if (bal >= 50000) {
-        userState.tier = 4;
-        userState.multiplier = 25;
-        userState.maxEnergy = 300;
-      } else if (bal >= 20000) {
-        userState.tier = 3;
-        userState.multiplier = 10;
-        userState.maxEnergy = 150;
-      } else if (bal >= 5000) {
-        userState.tier = 2;
-        userState.multiplier = 5;
-        userState.maxEnergy = 60;
-      } else if (bal >= 1000) {
-        userState.tier = 1;
-        userState.multiplier = 2;
-        userState.maxEnergy = 30;
-      } else {
-        userState.tier = 0;
-        userState.multiplier = 1;
-        userState.maxEnergy = 12;
-      }
-
-      if (userState.currentEnergy > userState.maxEnergy) {
-        userState.currentEnergy = userState.maxEnergy;
-      }
-
-      updateUI();
-    }
-
     window.handleTap = function(e) {
       if (!userState.wallet) {
         alert("Por favor conecta tu MetaMask arriba para empezar a jugar y guardar tu progreso en la nube.");
@@ -375,7 +386,7 @@
       checkEnergyRegen();
 
       if (userState.currentEnergy <= 0) {
-        alert("¡Energía agotada! Debes esperar a que recargue 1 de energía cada 2 horas o subir tu Tier de holding.");
+        alert("¡Energía agotada! Debes esperar a que recargue 1 de energía cada 2 horas.");
         return;
       }
 
@@ -424,10 +435,7 @@
       const expPercent = Math.min(100, (userState.exp / userState.expToNextLevel) * 100);
       document.getElementById("expProgressBar").style.width = `${expPercent}%`;
 
-      document.getElementById("valorBalanceTokens").innerText = `${userState.tokenBalance.toLocaleString()} $VALOR`;
-      
-      const badge = document.getElementById("tierBadge");
-      badge.innerText = `Tier ${userState.tier} (${userState.multiplier}x EXP)`;
+      document.getElementById("tierBadgeText").innerText = `Tier ${userState.tier} (${userState.multiplier}x EXP)`;
 
       if (userState.currentEnergy < userState.maxEnergy) {
         const now = Date.now();
