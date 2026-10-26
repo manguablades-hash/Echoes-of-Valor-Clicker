@@ -29,8 +29,8 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Solana Web3.js -->
-  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+  <!-- Ethers.js v5 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 
   <style>
     @keyframes pulse-glow {
@@ -61,7 +61,7 @@
         </div>
         <div>
           <h1 class="font-bold text-lg leading-none bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">Echoes of Valor</h1>
-          <span class="text-xs text-slate-400">Daily Tap RPG • Solana Edition</span>
+          <span class="text-xs text-slate-400">Daily Tap RPG • Web3 Edition</span>
         </div>
       </div>
 
@@ -74,7 +74,7 @@
 
         <button id="connectWalletBtn" onclick="connectWallet()" class="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm transition shadow-lg shadow-amber-500/20">
           <i data-lucide="wallet" class="w-4 h-4"></i>
-          <span id="walletBtnText">Conectar Wallet</span>
+          <span id="walletBtnText">Conectar MetaMask</span>
         </button>
       </div>
     </div>
@@ -90,8 +90,8 @@
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Billetera Conectada</span>
-            <div id="walletDisplay" class="font-mono text-sm text-slate-300">Desconectado (Modo Invitado)</div>
+            <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">MetaMask Conectada</span>
+            <div id="walletDisplay" class="font-mono text-sm text-slate-300">Desconectado</div>
           </div>
           <div class="flex items-center gap-3">
             <div class="text-right">
@@ -217,7 +217,7 @@
     </div>
   </footer>
 
-  <!-- Firebase & Solana Logic -->
+  <!-- Firebase & MetaMask Integration -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -235,11 +235,8 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    const TOKEN_CA = "82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump";
-    const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
-    
     let userState = {
-      wallet: "guest_" + Math.floor(Math.random() * 100000),
+      wallet: null,
       tokenBalance: 0,
       tier: 0,
       multiplier: 1,
@@ -256,102 +253,32 @@
 
     window.connectWallet = async function() {
       try {
-        if (!window.solana || !window.solana.isPhantom) {
-          alert("Por favor instala Phantom Wallet (Solana) para jugar.");
+        if (!window.ethereum) {
+          alert("MetaMask no está instalada. Por favor instala la extensión de MetaMask o abre esta página desde la app móvil de MetaMask.");
           return;
         }
 
-        const response = await window.solana.connect();
-        const address = response.publicKey.toString();
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        const signer = provider.getSigner();
+        const address = await signer.getAddress();
 
         userState.wallet = address;
-        document.getElementById("walletBtnText").innerText = address.substring(0, 4) + "..." + address.substring(address.length - 4);
+
+        document.getElementById("walletBtnText").innerText = address.substring(0, 6) + "..." + address.substring(address.length - 4);
         document.getElementById("walletDisplay").innerText = address;
 
-        // Escanear tokens reales en la blockchain de Solana
-        await fetchWalletTokenBalance(address);
-
+        // Cargar datos sincronizados en la nube por esa Wallet
         await loadCloudState();
         fetchLeaderboard();
       } catch (err) {
-        console.error("Wallet connection error:", err);
+        console.error("MetaMask connection error:", err);
       }
     };
 
-    async function fetchWalletTokenBalance(walletAddress) {
-      try {
-        const body = {
-          jsonrpc: "2.0",
-          id: 1,
-          method: "getTokenAccountsByOwner",
-          params: [
-            walletAddress,
-            { mint: TOKEN_CA },
-            { encoding: "jsonParsed" }
-          ]
-        };
-
-        const res = await fetch(SOLANA_RPC, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-
-        const data = await res.json();
-        let balance = 0;
-
-        if (data.result && data.result.value && data.result.value.length > 0) {
-          for (let account of data.result.value) {
-            const parsedInfo = account.account.data.parsed.info;
-            if (parsedInfo && parsedInfo.tokenAmount) {
-              balance += parseFloat(parsedInfo.tokenAmount.uiAmount || 0);
-            }
-          }
-        }
-
-        userState.tokenBalance = balance;
-        recalculateTier();
-      } catch (e) {
-        console.warn("Error leyendo la blockchain de Solana:", e);
-        userState.tokenBalance = 0;
-        recalculateTier();
-      }
-    }
-
-    function recalculateTier() {
-      const bal = userState.tokenBalance;
-
-      // Rangos configurables por cantidad de tokens $VALOR en la wallet
-      if (bal >= 50000) {
-        userState.tier = 4;
-        userState.multiplier = 25;
-        userState.maxEnergy = 300;
-      } else if (bal >= 20000) {
-        userState.tier = 3;
-        userState.multiplier = 10;
-        userState.maxEnergy = 150;
-      } else if (bal >= 5000) {
-        userState.tier = 2;
-        userState.multiplier = 5;
-        userState.maxEnergy = 60;
-      } else if (bal >= 1000) {
-        userState.tier = 1;
-        userState.multiplier = 2;
-        userState.maxEnergy = 30;
-      } else {
-        userState.tier = 0;
-        userState.multiplier = 1;
-        userState.maxEnergy = 12;
-      }
-
-      if (userState.currentEnergy > userState.maxEnergy) {
-        userState.currentEnergy = userState.maxEnergy;
-      }
-
-      updateUI();
-    }
-
     async function loadCloudState() {
+      if (!userState.wallet) return;
+
       try {
         const docRef = doc(db, "players", userState.wallet);
         const docSnap = await getDoc(docRef);
@@ -362,6 +289,7 @@
           userState.tickets = data.tickets || (userState.level - 1);
           userState.currentEnergy = data.currentEnergy !== undefined ? data.currentEnergy : 12;
           userState.lastEnergyUpdate = data.lastEnergyUpdate || Date.now();
+          userState.tier = data.tier || 0;
           userState.expToNextLevel = userState.level * 100;
         } else {
           await saveCloudState();
@@ -370,10 +298,12 @@
         console.warn("Error loading cloud state:", e);
       }
       checkEnergyRegen();
-      updateUI();
+      recalculateTier();
     }
 
     async function saveCloudState() {
+      if (!userState.wallet) return;
+
       try {
         const docRef = doc(db, "players", userState.wallet);
         await setDoc(docRef, {
@@ -404,11 +334,48 @@
       }
     }
 
+    function recalculateTier() {
+      const bal = userState.tokenBalance;
+
+      if (bal >= 50000) {
+        userState.tier = 4;
+        userState.multiplier = 25;
+        userState.maxEnergy = 300;
+      } else if (bal >= 20000) {
+        userState.tier = 3;
+        userState.multiplier = 10;
+        userState.maxEnergy = 150;
+      } else if (bal >= 5000) {
+        userState.tier = 2;
+        userState.multiplier = 5;
+        userState.maxEnergy = 60;
+      } else if (bal >= 1000) {
+        userState.tier = 1;
+        userState.multiplier = 2;
+        userState.maxEnergy = 30;
+      } else {
+        userState.tier = 0;
+        userState.multiplier = 1;
+        userState.maxEnergy = 12;
+      }
+
+      if (userState.currentEnergy > userState.maxEnergy) {
+        userState.currentEnergy = userState.maxEnergy;
+      }
+
+      updateUI();
+    }
+
     window.handleTap = function(e) {
+      if (!userState.wallet) {
+        alert("Por favor conecta tu MetaMask arriba para empezar a jugar y guardar tu progreso en la nube.");
+        return;
+      }
+
       checkEnergyRegen();
 
       if (userState.currentEnergy <= 0) {
-        alert("¡Energía agotada! Debes esperar a que recargue 1 de energía cada 2 horas o poseer más $VALOR.");
+        alert("¡Energía agotada! Debes esperar a que recargue 1 de energía cada 2 horas o subir tu Tier de holding.");
         return;
       }
 
@@ -485,14 +452,14 @@
         let rank = 1;
         querySnapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          const shortWallet = data.wallet.length > 12 ? data.wallet.substring(0, 4) + "..." + data.wallet.substring(data.wallet.length - 4) : data.wallet;
+          const displayId = data.wallet.length > 12 ? data.wallet.substring(0, 6) + "..." + data.wallet.substring(data.wallet.length - 4) : data.wallet;
           
           const row = document.createElement("div");
           row.className = "flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/60 text-xs";
           row.innerHTML = `
             <div class="flex items-center gap-3">
               <span class="font-bold w-6 text-center ${rank <= 3 ? 'text-amber-400 font-black' : 'text-slate-500'}">#${rank}</span>
-              <span class="font-mono text-slate-300">${shortWallet}</span>
+              <span class="font-mono text-slate-300">${displayId}</span>
             </div>
             <div class="flex items-center gap-3">
               <span class="text-[10px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">Tier ${data.tier || 0}</span>
@@ -504,7 +471,7 @@
         });
 
         if (rank === 1) {
-          list.innerHTML = `<div class="text-center text-xs text-slate-500 py-10">¡Sé el primero en el ranking haciendo taps!</div>`;
+          list.innerHTML = `<div class="text-center text-xs text-slate-500 py-10">¡Conecta MetaMask y sé el primero en el ranking!</div>`;
         }
       } catch (e) {
         console.warn("Error fetching leaderboard:", e);
