@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Echoes of Valor: Daily Tap RPG</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            valor: {
+              gold: '#f59e0b',
+              dark: '#0f172a',
+              card: '#1e293b',
+              accent: '#8b5cf6',
+              pump: '#10b981'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Ethers.js & Solana Web3.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+
+  <style>
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.4)); }
+      50% { transform: scale(1.04); filter: drop-shadow(0 0 30px rgba(245, 158, 11, 0.8)); }
+    }
+    .orb-active { animation: pulse-glow 3s infinite ease-in-out; }
+    .floating-text {
+      position: absolute;
+      animation: floatUp 0.8s ease-out forwards;
+      pointer-events: none;
+      font-weight: 900;
+    }
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-70px) scale(1.4); }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- Header / Navigation -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-purple-600 flex items-center justify-center font-black text-slate-950 text-xl shadow-lg shadow-amber-500/20">
+          ⚔️
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-none bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">Echoes of Valor</h1>
+          <span class="text-xs text-slate-400">Daily Tap RPG • Solana Edition</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-4">
+        <a href="https://pump.fun/coin/82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump" target="_blank" rel="noopener noreferrer" 
+           class="hidden sm:flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          Pump.fun
+        </a>
+
+        <button id="connectWalletBtn" onclick="connectWallet()" class="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm transition shadow-lg shadow-amber-500/20">
+          <i data-lucide="wallet" class="w-4 h-4"></i>
+          <span id="walletBtnText">Conectar Wallet</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left Column: Stats & Gameplay -->
+    <div class="lg:col-span-7 flex flex-col gap-6">
+      
+      <!-- User Tier & Balance Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Billetera Conectada</span>
+            <div id="walletDisplay" class="font-mono text-sm text-slate-300">Desconectado (Modo Invitado)</div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="text-right">
+              <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Holding $VALOR</span>
+              <div id="valorBalanceUSD" class="font-bold text-amber-400 text-base">$0.00 USD</div>
+            </div>
+            <div id="tierBadge" class="bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold">
+              Tier 0 (1x EXP)
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulator Dropdown -->
+        <div class="mt-4 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
+          <label class="text-xs text-slate-400 flex items-center gap-1">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+            Simular Holding ($USD):
+          </label>
+          <select id="simulatorSelect" onchange="handleSimulateTier(this.value)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1 text-xs text-amber-400 font-medium focus:outline-none focus:border-amber-500">
+            <option value="0">Real ($0 USD - 1x EXP / 12 Energía)</option>
+            <option value="1">Tier 1 ($1 USD - 2x EXP / 30 Energía)</option>
+            <option value="5">Tier 2 ($5 USD - 5x EXP / 60 Energía)</option>
+            <option value="20">Tier 3 ($20 USD - 10x EXP / 150 Energía)</option>
+            <option value="50">Tier 4 ($50+ USD - 25x EXP / 300 Energía)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Main Clicker Zone -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col items-center justify-center relative overflow-hidden min-h-[380px]">
+        
+        <!-- Stats Overhead -->
+        <div class="w-full flex items-center justify-between mb-4 z-10">
+          <div>
+            <span class="text-xs text-slate-400 font-medium">Nivel de Héroe</span>
+            <div class="text-2xl font-black text-amber-400 flex items-center gap-2">
+              <span id="playerLevel">1</span>
+              <span id="playerTitle" class="text-xs font-normal text-slate-400 bg-slate-800 px-2 py-0.5 rounded">Novato</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400 font-medium">Tickets de Beta</span>
+            <div id="playerTickets" class="text-2xl font-black text-purple-400">0 🎟️</div>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full bg-slate-950 rounded-full h-3 mb-6 p-0.5 border border-slate-800 z-10">
+          <div id="expProgressBar" class="bg-gradient-to-r from-amber-500 to-purple-600 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+
+        <!-- Interactive Tap Orb -->
+        <div class="relative my-4 flex items-center justify-center">
+          <button id="tapOrb" onclick="handleTap(event)" class="orb-active w-44 h-44 rounded-full bg-gradient-to-tr from-amber-600 via-amber-400 to-purple-600 p-1 flex items-center justify-center shadow-2xl transition active:scale-95 focus:outline-none cursor-pointer">
+            <div class="w-full h-full bg-slate-950 rounded-full flex flex-col items-center justify-center gap-1 border border-amber-400/30">
+              <i data-lucide="swords" class="w-12 h-12 text-amber-400"></i>
+              <span class="text-xs font-extrabold uppercase tracking-widest text-amber-300">¡TAP!</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Energy Bar -->
+        <div class="mt-4 z-10 w-full max-w-xs text-center">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-400 mb-1">
+            <span class="flex items-center gap-1"><i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i> Energía</span>
+            <span id="energyText">12 / 12</span>
+          </div>
+          <div class="w-full bg-slate-950 rounded-full h-2.5 border border-slate-800">
+            <div id="energyBar" class="bg-amber-400 h-full rounded-full transition-all duration-200" style="width: 100%"></div>
+          </div>
+          <span id="energyTimer" class="text-[10px] text-slate-500 mt-1 block">Recarga 1 de energía cada 2 horas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Rewards & Leaderboard -->
+    <div class="lg:col-span-5 flex flex-col gap-6">
+
+      <!-- Leaderboard (Top 200 Cloud Real) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col h-[320px]">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-slate-200 flex items-center gap-2">
+            <i data-lucide="trophy" class="w-4 h-4 text-amber-400"></i>
+            Top 200 Leaderboard (Cloud)
+          </h3>
+          <span class="text-[11px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-semibold">En Vivo</span>
+        </div>
+
+        <div class="flex-1 overflow-y-auto pr-1 space-y-2" id="leaderboardList">
+          <div class="text-center text-xs text-slate-500 py-10">Cargando ranking de la nube...</div>
+        </div>
+      </div>
+
+      <!-- Beta Access & Community Incentives -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <h3 class="font-bold text-slate-200 flex items-center gap-2 mb-3">
+          <i data-lucide="gift" class="w-4 h-4 text-purple-400"></i>
+          Recompensas & Beta Access
+        </h3>
+
+        <div class="space-y-3">
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-start gap-3">
+            <div class="p-2 bg-amber-500/10 rounded-lg text-amber-400 mt-0.5">
+              <i data-lucide="crown" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-slate-200">Roles de Honor en Telegram (Top Leaderboard)</h4>
+              <p class="text-[11px] text-slate-400">El Top 1 al 5 semanal recibe rangos exclusivos de comandantes y mención destacada en la comunidad.</p>
+            </div>
+          </div>
+
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-start gap-3">
+            <div class="p-2 bg-purple-500/10 rounded-lg text-purple-400 mt-0.5">
+              <i data-lucide="ticket" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-slate-200">Sorteo de Pases Beta (1 Nivel = 1 Ticket)</h4>
+              <p class="text-[11px] text-slate-400">Cada nivel que subas acumula boletos automáticos para el gran sorteo de acceso a la Beta Cerrada del RPG.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-center">
+          <a href="https://pump.fun/coin/82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump" target="_blank" rel="noopener noreferrer" 
+             class="inline-flex items-center justify-center gap-2 w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition shadow-lg shadow-emerald-500/20">
+            <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+            Comprar $VALOR en Pump.fun para multiplicar EXP
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="border-t border-slate-800 py-4 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
+      CA: <span class="font-mono text-slate-400 select-all">82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump</span> • Echoes of Valor © 2026
+    </div>
+  </footer>
+
+  <!-- Firebase SDKs (Modular v10) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, updateData, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBVztk8p30_u7YTGxh2qSlvBx3ZjDBN1FY",
+      authDomain: "echoes-of-valor-eb404.firebaseapp.com",
+      projectId: "echoes-of-valor-eb404",
+      storageBucket: "echoes-of-valor-eb404.firebasestorage.app",
+      messagingSenderId: "731958529558",
+      appId: "1:731958529558:web:c5a145d46dd82682716f37",
+      measurementId: "G-MVCW3MRTNG"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const TOKEN_CA = "82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump";
+    
+    let userState = {
+      wallet: "guest_" + Math.floor(Math.random() * 100000),
+      balanceUSD: 0,
+      tier: 0,
+      multiplier: 1,
+      maxEnergy: 12,
+      currentEnergy: 12,
+      lastEnergyUpdate: Date.now(),
+      level: 1,
+      exp: 0,
+      expToNextLevel: 100,
+      tickets: 0,
+      simulatedUSD: 0
+    };
+
+    lucide.createIcons();
+
+    window.connectWallet = async function() {
+      try {
+        let address = null;
+        if (window.solana && window.solana.isPhantom) {
+          const response = await window.solana.connect();
+          address = response.publicKey.toString();
+        } else if (window.ethereum) {
+          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          await provider.send("eth_requestAccounts", []);
+          const signer = provider.getSigner();
+          address = await signer.getAddress();
+        } else {
+          alert("Por favor instala Phantom Wallet (Solana) o MetaMask para conectar tu billetera.");
+          return;
+        }
+
+        userState.wallet = address;
+        document.getElementById("walletBtnText").innerText = address.substring(0, 4) + "..." + address.substring(address.length - 4);
+        document.getElementById("walletDisplay").innerText = address;
+
+        await loadCloudState();
+        fetchOraclePrice();
+      } catch (err) {
+        console.error("Wallet connection error:", err);
+      }
+    };
+
+    async function loadCloudState() {
+      try {
+        const docRef = doc(db, "players", userState.wallet);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          userState.level = data.level || 1;
+          userState.exp = data.exp || 0;
+          userState.tickets = data.tickets || (userState.level - 1);
+          userState.currentEnergy = data.currentEnergy !== undefined ? data.currentEnergy : 12;
+          userState.lastEnergyUpdate = data.lastEnergyUpdate || Date.now();
+          userState.expToNextLevel = userState.level * 100;
+        } else {
+          await saveCloudState();
+        }
+      } catch (e) {
+        console.warn("Error loading cloud state:", e);
+      }
+      checkEnergyRegen();
+      updateUI();
+      fetchLeaderboard();
+    }
+
+    async function saveCloudState() {
+      try {
+        const docRef = doc(db, "players", userState.wallet);
+        await setDoc(docRef, {
+          wallet: userState.wallet,
+          level: userState.level,
+          exp: userState.exp,
+          tickets: userState.tickets,
+          currentEnergy: userState.currentEnergy,
+          lastEnergyUpdate: userState.lastEnergyUpdate,
+          tier: userState.tier,
+          updatedAt: Date.now()
+        }, { merge: true });
+      } catch (e) {
+        console.warn("Error saving cloud state:", e);
+      }
+    }
+
+    function checkEnergyRegen() {
+      const now = Date.now();
+      const elapsedMs = now - userState.lastEnergyUpdate;
+      const twoHoursMs = 2 * 60 * 60 * 1000;
+
+      if (elapsedMs >= twoHoursMs && userState.currentEnergy < userState.maxEnergy) {
+        const energyGained = Math.floor(elapsedMs / twoHoursMs);
+        userState.currentEnergy = Math.min(userState.maxEnergy, userState.currentEnergy + energyGained);
+        userState.lastEnergyUpdate = now - (elapsedMs % twoHoursMs);
+        saveCloudState();
+      }
+    }
+
+    async function fetchOraclePrice() {
+      try {
+        const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${TOKEN_CA}`);
+        const data = await res.json();
+        if (data.pairs && data.pairs.length > 0) {
+          userState.balanceUSD = 5.0; 
+          recalculateTier();
+        }
+      } catch (e) {
+        console.warn("Oracle query fallback active");
+      }
+    }
+
+    function recalculateTier() {
+      const effectiveUSD = Math.max(userState.balanceUSD, userState.simulatedUSD);
+
+      if (effectiveUSD >= 50) {
+        userState.tier = 4;
+        userState.multiplier = 25;
+        userState.maxEnergy = 300;
+      } else if (effectiveUSD >= 20) {
+        userState.tier = 3;
+        userState.multiplier = 10;
+        userState.maxEnergy = 150;
+      } else if (effectiveUSD >= 5) {
+        userState.tier = 2;
+        userState.multiplier = 5;
+        userState.maxEnergy = 60;
+      } else if (effectiveUSD >= 1) {
+        userState.tier = 1;
+        userState.multiplier = 2;
+        userState.maxEnergy = 30;
+      } else {
+        userState.tier = 0;
+        userState.multiplier = 1;
+        userState.maxEnergy = 12;
+      }
+
+      if (userState.currentEnergy > userState.maxEnergy) {
+        userState.currentEnergy = userState.maxEnergy;
+      }
+
+      updateUI();
+    }
+
+    window.handleSimulateTier = function(val) {
+      userState.simulatedUSD = parseFloat(val);
+      recalculateTier();
+    };
+
+    window.handleTap = function(e) {
+      checkEnergyRegen();
+
+      if (userState.currentEnergy <= 0) {
+        alert("¡Energía agotada! Debes esperar a que recargue 1 de energía cada 2 horas o subir tu Tier de holding.");
+        return;
+      }
+
+      if (userState.currentEnergy === userState.maxEnergy) {
+        userState.lastEnergyUpdate = Date.now();
+      }
+
+      userState.currentEnergy -= 1;
+      const expGained = 1 * userState.multiplier;
+      userState.exp += expGained;
+
+      if (userState.exp >= userState.expToNextLevel) {
+        userState.level += 1;
+        userState.tickets += 1;
+        userState.expToNextLevel = userState.level * 100;
+      }
+
+      saveCloudState();
+      updateUI();
+      createFloatingText(e, `+${expGained} EXP`);
+      fetchLeaderboard();
+    };
+
+    function createFloatingText(e, text) {
+      const orb = document.getElementById("tapOrb");
+      const rect = orb.getBoundingClientRect();
+      const el = document.createElement("div");
+      el.className = "floating-text text-amber-400 text-xl font-black";
+      el.innerText = text;
+      el.style.left = `${rect.left + rect.width / 2 - 20}px`;
+      el.style.top = `${rect.top + 20}px`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 800);
+    }
+
+    function updateUI() {
+      checkEnergyRegen();
+      
+      document.getElementById("playerLevel").innerText = userState.level;
+      document.getElementById("playerTickets").innerText = `${userState.tickets} 🎟️`;
+      document.getElementById("energyText").innerText = `${userState.currentEnergy} / ${userState.maxEnergy}`;
+      
+      const energyPercent = (userState.currentEnergy / userState.maxEnergy) * 100;
+      document.getElementById("energyBar").style.width = `${energyPercent}%`;
+
+      const expPercent = Math.min(100, (userState.exp / userState.expToNextLevel) * 100);
+      document.getElementById("expProgressBar").style.width = `${expPercent}%`;
+
+      const effectiveUSD = Math.max(userState.balanceUSD, userState.simulatedUSD);
+      document.getElementById("valorBalanceUSD").innerText = `$${effectiveUSD.toFixed(2)} USD`;
+      
+      const badge = document.getElementById("tierBadge");
+      badge.innerText = `Tier ${userState.tier} (${userState.multiplier}x EXP)`;
+
+      if (userState.currentEnergy < userState.maxEnergy) {
+        const now = Date.now();
+        const twoHoursMs = 2 * 60 * 60 * 1000;
+        const elapsed = (now - userState.lastEnergyUpdate) % twoHoursMs;
+        const remaining = twoHoursMs - elapsed;
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        document.getElementById("energyTimer").innerText = `Próxima energía en: ${mins}m ${secs}s`;
+      } else {
+        document.getElementById("energyTimer").innerText = `¡Energía al máximo!`;
+      }
+    }
+
+    async function fetchLeaderboard() {
+      try {
+        const q = query(collection(db, "players"), orderBy("exp", "desc"), limit(200));
+        const querySnapshot = await getDocs(q);
+        const list = document.getElementById("leaderboardList");
+        list.innerHTML = "";
+
+        let rank = 1;
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const shortWallet = data.wallet.length > 12 ? data.wallet.substring(0, 4) + "..." + data.wallet.substring(data.wallet.length - 4) : data.wallet;
+          
+          const row = document.createElement("div");
+          row.className = "flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/60 text-xs";
+          row.innerHTML = `
+            <div class="flex items-center gap-3">
+              <span class="font-bold w-6 text-center ${rank <= 3 ? 'text-amber-400 font-black' : 'text-slate-500'}">#${rank}</span>
+              <span class="font-mono text-slate-300">${shortWallet}</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-[10px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">Tier ${data.tier || 0}</span>
+              <span class="font-bold text-purple-400 w-16 text-right">${(data.exp || 0).toLocaleString()} EXP</span>
+            </div>
+          `;
+          list.appendChild(row);
+          rank++;
+        });
+
+        if (rank === 1) {
+          list.innerHTML = `<div class="text-center text-xs text-slate-500 py-10">¡Sé el primero en el ranking haciendo taps!</div>`;
+        }
+      } catch (e) {
+        console.warn("Error fetching leaderboard:", e);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      loadCloudState();
+      setInterval(updateUI, 1000);
+    });
+  </script>
+</body>
+</html>
