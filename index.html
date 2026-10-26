@@ -95,7 +95,12 @@
           </div>
           <div class="flex items-center gap-3">
             <div class="text-right">
-              <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Balance y Holding USD</span>
+              <div class="flex items-center justify-end gap-2">
+                <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Balance y Holding USD</span>
+                <button onclick="forceRefreshBalance()" title="Actualizar Balance" class="text-amber-400 hover:text-amber-300 transition">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
               <div id="valorBalanceTokens" class="font-bold text-amber-400 text-base">0 $VALOR ($0.00 USD)</div>
             </div>
             <div id="tierBadge" class="bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold">
@@ -217,7 +222,7 @@
     </div>
   </footer>
 
-  <!-- Firebase & Real Solana Token + USD Price Scanner -->
+  <!-- Firebase & Robust Solana Token + USD Price Scanner -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -236,7 +241,8 @@
     const db = getFirestore(app);
 
     const TOKEN_CA = "82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump";
-    const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
+    // Usamos Ankr RPC que permite peticiones seguras desde navegadores sin bloqueos estrictos de CORS
+    const SOLANA_RPC = "https://rpc.ankr.com/solana";
 
     let userState = {
       wallet: null,
@@ -271,15 +277,30 @@
         document.getElementById("walletBtnText").innerText = address.substring(0, 4) + "..." + address.substring(address.length - 4);
         document.getElementById("walletDisplay").innerText = address;
 
-        // Consultar precio y balance en tiempo real
-        await fetchTokenPriceUSD();
-        await fetchWalletTokenBalance(address);
+        await scanWalletData();
         await loadCloudState();
         fetchLeaderboard();
       } catch (err) {
         console.error("Wallet connection error:", err);
       }
     };
+
+    window.forceRefreshBalance = async function() {
+      if (!userState.wallet) {
+        alert("Primero conecta tu Phantom Wallet.");
+        return;
+      }
+      await scanWalletData();
+      updateUI();
+      alert("¡Balance actualizado correctamente!");
+    };
+
+    async function scanWalletData() {
+      await fetchTokenPriceUSD();
+      if (userState.wallet) {
+        await fetchWalletTokenBalance(userState.wallet);
+      }
+    }
 
     async function fetchTokenPriceUSD() {
       try {
