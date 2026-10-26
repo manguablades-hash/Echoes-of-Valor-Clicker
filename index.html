@@ -29,8 +29,8 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Ethers.js v5 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <!-- Solana Web3.js -->
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 
   <style>
     @keyframes pulse-glow {
@@ -61,7 +61,7 @@
         </div>
         <div>
           <h1 class="font-bold text-lg leading-none bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">Echoes of Valor</h1>
-          <span class="text-xs text-slate-400">Daily Tap RPG • Web3 Edition</span>
+          <span class="text-xs text-slate-400">Daily Tap RPG • Solana Edition</span>
         </div>
       </div>
 
@@ -74,7 +74,7 @@
 
         <button id="connectWalletBtn" onclick="connectWallet()" class="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm transition shadow-lg shadow-amber-500/20">
           <i data-lucide="wallet" class="w-4 h-4"></i>
-          <span id="walletBtnText">Conectar MetaMask</span>
+          <span id="walletBtnText">Conectar Phantom</span>
         </button>
       </div>
     </div>
@@ -90,30 +90,18 @@
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">MetaMask Conectada</span>
+            <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Wallet Conectada</span>
             <div id="walletDisplay" class="font-mono text-sm text-slate-300">Desconectado</div>
           </div>
           <div class="flex items-center gap-3">
             <div class="text-right">
-              <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Multiplicador Activo</span>
-              <div id="tierBadgeText" class="font-bold text-amber-400 text-base">Tier 0 (1x EXP)</div>
+              <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Balance $VALOR Real</span>
+              <div id="valorBalanceTokens" class="font-bold text-amber-400 text-base">0 $VALOR</div>
+            </div>
+            <div id="tierBadge" class="bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold">
+              Tier 0 (1x EXP)
             </div>
           </div>
-        </div>
-
-        <!-- Tier Selector Bar -->
-        <div class="mt-4 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
-          <label class="text-xs text-slate-400 flex items-center gap-1 font-semibold">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
-            Seleccionar Rango / Tier de Holding:
-          </label>
-          <select id="tierSelector" onchange="changeTier(this.value)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-amber-400 font-bold focus:outline-none focus:border-amber-500">
-            <option value="0">Tier 0 (0 $VALOR - 1x EXP)</option>
-            <option value="1">Tier 1 (1,000+ $VALOR - 2x EXP)</option>
-            <option value="2">Tier 2 (5,000+ $VALOR - 5x EXP)</option>
-            <option value="3">Tier 3 (20,000+ $VALOR - 10x EXP)</option>
-            <option value="4">Tier 4 (50,000+ $VALOR - 25x EXP)</option>
-          </select>
         </div>
       </div>
 
@@ -229,7 +217,7 @@
     </div>
   </footer>
 
-  <!-- Firebase & MetaMask Integration -->
+  <!-- Firebase & Real Solana Token Scanner -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -247,8 +235,12 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    const TOKEN_CA = "82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump";
+    const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
+
     let userState = {
       wallet: null,
+      tokenBalance: 0,
       tier: 0,
       multiplier: 1,
       maxEnergy: 12,
@@ -264,27 +256,96 @@
 
     window.connectWallet = async function() {
       try {
-        if (!window.ethereum) {
-          alert("MetaMask no está instalada. Por favor instala la extensión o abre esta página desde la app de MetaMask.");
+        if (!window.solana || !window.solana.isPhantom) {
+          alert("Por favor instala Phantom Wallet (Solana) para conectar tu cuenta y escanear tus tokens reales de Pump.fun.");
           return;
         }
 
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        const signer = provider.getSigner();
-        const address = await signer.getAddress();
+        const response = await window.solana.connect();
+        const address = response.publicKey.toString();
 
         userState.wallet = address;
 
-        document.getElementById("walletBtnText").innerText = address.substring(0, 6) + "..." + address.substring(address.length - 4);
+        document.getElementById("walletBtnText").innerText = address.substring(0, 4) + "..." + address.substring(address.length - 4);
         document.getElementById("walletDisplay").innerText = address;
 
+        // Escaneo real automático en la blockchain de Solana
+        await fetchWalletTokenBalance(address);
         await loadCloudState();
         fetchLeaderboard();
       } catch (err) {
-        console.error("MetaMask connection error:", err);
+        console.error("Wallet connection error:", err);
       }
     };
+
+    async function fetchWalletTokenBalance(walletAddress) {
+      try {
+        const body = {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "getTokenAccountsByOwner",
+          params: [
+            walletAddress,
+            { mint: TOKEN_CA },
+            { encoding: "jsonParsed" }
+          ]
+        };
+
+        const res = await fetch(SOLANA_RPC, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+        let balance = 0;
+
+        if (data.result && data.result.value && data.result.value.length > 0) {
+          for (let account of data.result.value) {
+            const parsedInfo = account.account.data.parsed.info;
+            if (parsedInfo && parsedInfo.tokenAmount) {
+              balance += parseFloat(parsedInfo.tokenAmount.uiAmount || 0);
+            }
+          }
+        }
+
+        userState.tokenBalance = balance;
+        recalculateTier();
+      } catch (e) {
+        console.warn("Error leyendo la blockchain de Solana:", e);
+        userState.tokenBalance = 0;
+        recalculateTier();
+      }
+    }
+
+    function recalculateTier() {
+      const bal = userState.tokenBalance;
+
+      // Rangos ajustados de forma realista para la economía del token en Pump.fun
+      if (bal >= 1000000) {
+        userState.tier = 4;
+        userState.multiplier = 25;
+      } else if (bal >= 500000) {
+        userState.tier = 3;
+        userState.multiplier = 10;
+      } else if (bal >= 100000) {
+        userState.tier = 2;
+        userState.multiplier = 5;
+      } else if (bal >= 10000) {
+        userState.tier = 1;
+        userState.multiplier = 2;
+      } else {
+        userState.tier = 0;
+        userState.multiplier = 1;
+      }
+
+      userState.maxEnergy = 12;
+      if (userState.currentEnergy > userState.maxEnergy) {
+        userState.currentEnergy = userState.maxEnergy;
+      }
+
+      updateUI();
+    }
 
     async function loadCloudState() {
       if (!userState.wallet) return;
@@ -299,7 +360,6 @@
           userState.tickets = data.tickets || (userState.level - 1);
           userState.currentEnergy = data.currentEnergy !== undefined ? data.currentEnergy : 12;
           userState.lastEnergyUpdate = data.lastEnergyUpdate || Date.now();
-          userState.tier = data.tier !== undefined ? data.tier : 0;
           userState.expToNextLevel = userState.level * 100;
         } else {
           await saveCloudState();
@@ -307,9 +367,6 @@
       } catch (e) {
         console.warn("Error loading cloud state:", e);
       }
-      
-      applyTierSettings(userState.tier);
-      document.getElementById("tierSelector").value = userState.tier;
       checkEnergyRegen();
       updateUI();
     }
@@ -334,36 +391,6 @@
       }
     }
 
-    window.changeTier = function(tierVal) {
-      const t = parseInt(tierVal);
-      userState.tier = t;
-      applyTierSettings(t);
-      saveCloudState();
-      updateUI();
-      fetchLeaderboard();
-    };
-
-    function applyTierSettings(t) {
-      if (t === 4) {
-        userState.multiplier = 25;
-      } else if (t === 3) {
-        userState.multiplier = 10;
-      } else if (t === 2) {
-        userState.multiplier = 5;
-      } else if (t === 1) {
-        userState.multiplier = 2;
-      } else {
-        userState.tier = 0;
-        userState.multiplier = 1;
-      }
-
-      userState.maxEnergy = 12;
-
-      if (userState.currentEnergy > userState.maxEnergy) {
-        userState.currentEnergy = userState.maxEnergy;
-      }
-    }
-
     function checkEnergyRegen() {
       const now = Date.now();
       const elapsedMs = now - userState.lastEnergyUpdate;
@@ -379,7 +406,7 @@
 
     window.handleTap = function(e) {
       if (!userState.wallet) {
-        alert("Por favor conecta tu MetaMask arriba para empezar a jugar y guardar tu progreso en la nube.");
+        alert("Por favor conecta tu Phantom Wallet para jugar y guardar tu progreso.");
         return;
       }
 
@@ -435,7 +462,10 @@
       const expPercent = Math.min(100, (userState.exp / userState.expToNextLevel) * 100);
       document.getElementById("expProgressBar").style.width = `${expPercent}%`;
 
-      document.getElementById("tierBadgeText").innerText = `Tier ${userState.tier} (${userState.multiplier}x EXP)`;
+      document.getElementById("valorBalanceTokens").innerText = `${userState.tokenBalance.toLocaleString()} $VALOR`;
+      
+      const badge = document.getElementById("tierBadge");
+      badge.innerText = `Tier ${userState.tier} (${userState.multiplier}x EXP)`;
 
       if (userState.currentEnergy < userState.maxEnergy) {
         const now = Date.now();
@@ -460,7 +490,7 @@
         let rank = 1;
         querySnapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          const displayId = data.wallet.length > 12 ? data.wallet.substring(0, 6) + "..." + data.wallet.substring(data.wallet.length - 4) : data.wallet;
+          const displayId = data.wallet.length > 12 ? data.wallet.substring(0, 4) + "..." + data.wallet.substring(data.wallet.length - 4) : data.wallet;
           
           const row = document.createElement("div");
           row.className = "flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/60 text-xs";
@@ -479,7 +509,7 @@
         });
 
         if (rank === 1) {
-          list.innerHTML = `<div class="text-center text-xs text-slate-500 py-10">¡Conecta MetaMask y sé el primero en el ranking!</div>`;
+          list.innerHTML = `<div class="text-center text-xs text-slate-500 py-10">¡Conecta Phantom y sé el primero en el ranking!</div>`;
         }
       } catch (e) {
         console.warn("Error fetching leaderboard:", e);
