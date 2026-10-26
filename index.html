@@ -29,8 +29,7 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Ethers.js & Solana Web3.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <!-- Solana Web3.js -->
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 
   <style>
@@ -96,28 +95,13 @@
           </div>
           <div class="flex items-center gap-3">
             <div class="text-right">
-              <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Holding $VALOR</span>
-              <div id="valorBalanceUSD" class="font-bold text-amber-400 text-base">$0.00 USD</div>
+              <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Balance $VALOR</span>
+              <div id="valorBalanceTokens" class="font-bold text-amber-400 text-base">0 $VALOR</div>
             </div>
             <div id="tierBadge" class="bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold">
               Tier 0 (1x EXP)
             </div>
           </div>
-        </div>
-
-        <!-- Simulator Dropdown -->
-        <div class="mt-4 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
-          <label class="text-xs text-slate-400 flex items-center gap-1">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
-            Simular Holding ($USD):
-          </label>
-          <select id="simulatorSelect" onchange="handleSimulateTier(this.value)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1 text-xs text-amber-400 font-medium focus:outline-none focus:border-amber-500">
-            <option value="0">Real ($0 USD - 1x EXP / 12 Energía)</option>
-            <option value="1">Tier 1 ($1 USD - 2x EXP / 30 Energía)</option>
-            <option value="5">Tier 2 ($5 USD - 5x EXP / 60 Energía)</option>
-            <option value="20">Tier 3 ($20 USD - 10x EXP / 150 Energía)</option>
-            <option value="50">Tier 4 ($50+ USD - 25x EXP / 300 Energía)</option>
-          </select>
         </div>
       </div>
 
@@ -233,7 +217,7 @@
     </div>
   </footer>
 
-  <!-- Firebase SDKs (Modular v10) -->
+  <!-- Firebase & Solana Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -252,10 +236,11 @@
     const db = getFirestore(app);
 
     const TOKEN_CA = "82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump";
+    const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
     
     let userState = {
       wallet: "guest_" + Math.floor(Math.random() * 100000),
-      balanceUSD: 0,
+      tokenBalance: 0,
       tier: 0,
       multiplier: 1,
       maxEnergy: 12,
@@ -264,38 +249,107 @@
       level: 1,
       exp: 0,
       expToNextLevel: 100,
-      tickets: 0,
-      simulatedUSD: 0
+      tickets: 0
     };
 
     lucide.createIcons();
 
     window.connectWallet = async function() {
       try {
-        let address = null;
-        if (window.solana && window.solana.isPhantom) {
-          const response = await window.solana.connect();
-          address = response.publicKey.toString();
-        } else if (window.ethereum) {
-          const provider = new ethers.providers.Web3Provider(window.ethereum);
-          await provider.send("eth_requestAccounts", []);
-          const signer = provider.getSigner();
-          address = await signer.getAddress();
-        } else {
-          alert("Por favor instala Phantom Wallet (Solana) o MetaMask para conectar tu billetera.");
+        if (!window.solana || !window.solana.isPhantom) {
+          alert("Por favor instala Phantom Wallet (Solana) para jugar.");
           return;
         }
+
+        const response = await window.solana.connect();
+        const address = response.publicKey.toString();
 
         userState.wallet = address;
         document.getElementById("walletBtnText").innerText = address.substring(0, 4) + "..." + address.substring(address.length - 4);
         document.getElementById("walletDisplay").innerText = address;
 
+        // Escanear tokens reales en la blockchain de Solana
+        await fetchWalletTokenBalance(address);
+
         await loadCloudState();
-        fetchOraclePrice();
+        fetchLeaderboard();
       } catch (err) {
         console.error("Wallet connection error:", err);
       }
     };
+
+    async function fetchWalletTokenBalance(walletAddress) {
+      try {
+        const body = {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "getTokenAccountsByOwner",
+          params: [
+            walletAddress,
+            { mint: TOKEN_CA },
+            { encoding: "jsonParsed" }
+          ]
+        };
+
+        const res = await fetch(SOLANA_RPC, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+        let balance = 0;
+
+        if (data.result && data.result.value && data.result.value.length > 0) {
+          for (let account of data.result.value) {
+            const parsedInfo = account.account.data.parsed.info;
+            if (parsedInfo && parsedInfo.tokenAmount) {
+              balance += parseFloat(parsedInfo.tokenAmount.uiAmount || 0);
+            }
+          }
+        }
+
+        userState.tokenBalance = balance;
+        recalculateTier();
+      } catch (e) {
+        console.warn("Error leyendo la blockchain de Solana:", e);
+        userState.tokenBalance = 0;
+        recalculateTier();
+      }
+    }
+
+    function recalculateTier() {
+      const bal = userState.tokenBalance;
+
+      // Rangos configurables por cantidad de tokens $VALOR en la wallet
+      if (bal >= 50000) {
+        userState.tier = 4;
+        userState.multiplier = 25;
+        userState.maxEnergy = 300;
+      } else if (bal >= 20000) {
+        userState.tier = 3;
+        userState.multiplier = 10;
+        userState.maxEnergy = 150;
+      } else if (bal >= 5000) {
+        userState.tier = 2;
+        userState.multiplier = 5;
+        userState.maxEnergy = 60;
+      } else if (bal >= 1000) {
+        userState.tier = 1;
+        userState.multiplier = 2;
+        userState.maxEnergy = 30;
+      } else {
+        userState.tier = 0;
+        userState.multiplier = 1;
+        userState.maxEnergy = 12;
+      }
+
+      if (userState.currentEnergy > userState.maxEnergy) {
+        userState.currentEnergy = userState.maxEnergy;
+      }
+
+      updateUI();
+    }
 
     async function loadCloudState() {
       try {
@@ -317,7 +371,6 @@
       }
       checkEnergyRegen();
       updateUI();
-      fetchLeaderboard();
     }
 
     async function saveCloudState() {
@@ -351,61 +404,11 @@
       }
     }
 
-    async function fetchOraclePrice() {
-      try {
-        const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${TOKEN_CA}`);
-        const data = await res.json();
-        if (data.pairs && data.pairs.length > 0) {
-          userState.balanceUSD = 5.0; 
-          recalculateTier();
-        }
-      } catch (e) {
-        console.warn("Oracle query fallback active");
-      }
-    }
-
-    function recalculateTier() {
-      const effectiveUSD = Math.max(userState.balanceUSD, userState.simulatedUSD);
-
-      if (effectiveUSD >= 50) {
-        userState.tier = 4;
-        userState.multiplier = 25;
-        userState.maxEnergy = 300;
-      } else if (effectiveUSD >= 20) {
-        userState.tier = 3;
-        userState.multiplier = 10;
-        userState.maxEnergy = 150;
-      } else if (effectiveUSD >= 5) {
-        userState.tier = 2;
-        userState.multiplier = 5;
-        userState.maxEnergy = 60;
-      } else if (effectiveUSD >= 1) {
-        userState.tier = 1;
-        userState.multiplier = 2;
-        userState.maxEnergy = 30;
-      } else {
-        userState.tier = 0;
-        userState.multiplier = 1;
-        userState.maxEnergy = 12;
-      }
-
-      if (userState.currentEnergy > userState.maxEnergy) {
-        userState.currentEnergy = userState.maxEnergy;
-      }
-
-      updateUI();
-    }
-
-    window.handleSimulateTier = function(val) {
-      userState.simulatedUSD = parseFloat(val);
-      recalculateTier();
-    };
-
     window.handleTap = function(e) {
       checkEnergyRegen();
 
       if (userState.currentEnergy <= 0) {
-        alert("¡Energía agotada! Debes esperar a que recargue 1 de energía cada 2 horas o subir tu Tier de holding.");
+        alert("¡Energía agotada! Debes esperar a que recargue 1 de energía cada 2 horas o poseer más $VALOR.");
         return;
       }
 
@@ -454,8 +457,7 @@
       const expPercent = Math.min(100, (userState.exp / userState.expToNextLevel) * 100);
       document.getElementById("expProgressBar").style.width = `${expPercent}%`;
 
-      const effectiveUSD = Math.max(userState.balanceUSD, userState.simulatedUSD);
-      document.getElementById("valorBalanceUSD").innerText = `$${effectiveUSD.toFixed(2)} USD`;
+      document.getElementById("valorBalanceTokens").innerText = `${userState.tokenBalance.toLocaleString()} $VALOR`;
       
       const badge = document.getElementById("tierBadge");
       badge.innerText = `Tier ${userState.tier} (${userState.multiplier}x EXP)`;
@@ -510,7 +512,7 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      loadCloudState();
+      fetchLeaderboard();
       setInterval(updateUI, 1000);
     });
   </script>
