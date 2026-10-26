@@ -222,7 +222,7 @@
     </div>
   </footer>
 
-  <!-- Firebase & Robust Solana Token + USD Price Scanner -->
+  <!-- Firebase & Solana CORS-Proxy Scanner -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -241,8 +241,8 @@
     const db = getFirestore(app);
 
     const TOKEN_CA = "82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump";
-    // Usamos Ankr RPC que permite peticiones seguras desde navegadores sin bloqueos estrictos de CORS
-    const SOLANA_RPC = "https://rpc.ankr.com/solana";
+    const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
+    const CORS_PROXY = "https://corsproxy.io/?";
 
     let userState = {
       wallet: null,
@@ -265,7 +265,7 @@
     window.connectWallet = async function() {
       try {
         if (!window.solana || !window.solana.isPhantom) {
-          alert("Por favor instala Phantom Wallet (Solana) para conectar tu cuenta y escanear tus tokens reales de Pump.fun.");
+          alert("Por favor instala Phantom Wallet (Solana) para conectar tu cuenta.");
           return;
         }
 
@@ -292,7 +292,7 @@
       }
       await scanWalletData();
       updateUI();
-      alert("¡Balance actualizado correctamente!");
+      alert("¡Balance actualizado desde la blockchain!");
     };
 
     async function scanWalletData() {
@@ -330,7 +330,7 @@
           ]
         };
 
-        const res = await fetch(SOLANA_RPC, {
+        const res = await fetch(CORS_PROXY + encodeURIComponent(SOLANA_RPC), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body)
@@ -362,12 +362,6 @@
     function recalculateTier() {
       const usd = userState.holdingUSD;
 
-      // Rangos competitivos basados en USD real en micro-cap:
-      // Tier 4: $50+ USD -> 25x EXP
-      // Tier 3: $15 a $49.99 USD -> 10x EXP
-      // Tier 2: $5 a $14.99 USD -> 5x EXP
-      // Tier 1: $1 a $4.99 USD -> 2x EXP
-      // Tier 0: Menos de $1 USD -> 1x EXP
       if (usd >= 50) {
         userState.tier = 4;
         userState.multiplier = 25;
