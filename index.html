@@ -310,16 +310,16 @@
     const WALLET_BURN = "1nc1nerator11111111111111111111111111111111"; // Incinerador oficial de Solana
     const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
 
-    // IDs de programas SPL Token nativos del navegador (Sin dependencias externas conflictivas)
+    // Program IDs nativos de SPL Token
     const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
     const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
-    function getAssociatedTokenAddress(mint, owner) {
-      const [address] = solanaWeb3.PublicKey.findProgramAddressSync(
+    async function getAssociatedTokenAddress(mint, owner) {
+      const res = await solanaWeb3.PublicKey.findProgramAddress(
         [owner.toBytes(), TOKEN_PROGRAM_ID.toBytes(), mint.toBytes()],
         ASSOCIATED_TOKEN_PROGRAM_ID
       );
-      return address;
+      return res[0];
     }
 
     function createAssociatedTokenAccountInstruction(payer, associatedToken, owner, mint) {
@@ -409,7 +409,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS NATIVO (LIBRE DE ERRORES DE BUFFER)
+    // PROCESADOR DE COMPRAS NATIVO CON ASYNC ATA
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
@@ -438,10 +438,10 @@
 
         alert(`Abriendo Phantom para confirmar el pago de ${costTokens.toLocaleString()} $VALOR...`);
 
-        const userATA = getAssociatedTokenAddress(mintPubkey, userPubkey);
-        const devATA = getAssociatedTokenAddress(mintPubkey, devPubkey);
-        const treasuryATA = getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
-        const burnATA = getAssociatedTokenAddress(mintPubkey, burnPubkey);
+        const userATA = await getAssociatedTokenAddress(mintPubkey, userPubkey);
+        const devATA = await getAssociatedTokenAddress(mintPubkey, devPubkey);
+        const treasuryATA = await getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
+        const burnATA = await getAssociatedTokenAddress(mintPubkey, burnPubkey);
 
         const transaction = new solanaWeb3.Transaction();
 
