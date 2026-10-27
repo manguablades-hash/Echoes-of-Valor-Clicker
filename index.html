@@ -310,6 +310,8 @@
       referredBy: null
     };
 
+    let pendingReferralExp = 0; // Acumulador local para evitar saturar Firebase
+
     lucide.createIcons();
 
     // Detección de código de referido en la URL (?ref=WALLET)
@@ -438,7 +440,6 @@
           userState.referredBy = data.referredBy || null;
           userState.expToNextLevel = userState.level * 100;
         } else {
-          // Asignar referido solo si viene de un enlace de invitación diferente a su propia wallet
           if (referrerFromUrl && referrerFromUrl !== userState.wallet) {
             userState.referredBy = referrerFromUrl;
           }
@@ -467,6 +468,17 @@
           referredBy: userState.referredBy || null,
           updatedAt: Date.now()
         }, { merge: true });
+
+        // Enviar acumulación de EXP del referido en lote (batch)
+        if (userState.referredBy && pendingReferralExp > 0) {
+          const expToSend = pendingReferralExp;
+          pendingReferralExp = 0; // Reset local
+          const referrerRef = doc(db, "players", userState.referredBy);
+          await updateDoc(referrerRef, {
+            exp: increment(expToSend)
+          }).catch(err => console.warn("No se pudo acreditar EXP al anfitrión:", err));
+        }
+
       } catch (e) {
         console.warn("Error saving cloud state:", e);
       }
@@ -485,7 +497,7 @@
       }
     }
 
-    window.handleTap = async function(e) {
+    window.handleTap = function(e) {
       if (!userState.wallet) {
         alert("Por favor conecta tu Phantom Wallet para jugar.");
         return;
@@ -506,23 +518,15 @@
       const expGained = 1 * multiplier;
       userState.exp += expGained;
 
+      // Acumular el 10% de EXP de referido de forma local (sin sobrecargar Firebase)
+      if (userState.referredBy) {
+        pendingReferralExp += (expGained * 0.10);
+      }
+
       if (userState.exp >= userState.expToNextLevel) {
         userState.level += 1;
         userState.tickets += 1;
         userState.expToNextLevel = userState.level * 100;
-      }
-
-      // COMISIÓN DEL 10% DE EXP PARA EL ANFITRIÓN
-      if (userState.referredBy) {
-        const referrerBonusExp = expGained * 0.10;
-        try {
-          const referrerRef = doc(db, "players", userState.referredBy);
-          await updateDoc(referrerRef, {
-            exp: increment(referrerBonusExp)
-          });
-        } catch (err) {
-          console.warn("No se pudo acreditar la EXP al referido:", err);
-        }
       }
 
       saveCloudState();
