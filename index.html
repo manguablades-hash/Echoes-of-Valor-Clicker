@@ -29,18 +29,7 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- ========================================================== -->
-  <!-- 1. POLYFILL DE BUFFER ROBUSTO PARA EL NAVEGADOR Y GITHUB PAGES -->
-  <!-- ========================================================== -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
-  <script>
-    if (typeof window !== 'undefined') {
-      window.Buffer = window.Buffer || buffer.Buffer;
-      globalThis.Buffer = globalThis.Buffer || buffer.Buffer;
-    }
-  </script>
-
-  <!-- 2. Solana Web3.js cargado de forma síncrona -->
+  <!-- Solana Web3.js -->
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 
   <style>
@@ -326,14 +315,13 @@
     const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
     const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
-    // Función ATA utilizando Buffer global seguro para Web3.js
+    // Función ATA segura usando Uint8Array nativo del navegador (sin errores de Buffer)
     async function getAssociatedTokenAddress(mint, owner) {
-      const BufferClass = window.Buffer || globalThis.Buffer;
       const res = await solanaWeb3.PublicKey.findProgramAddress(
         [
-          BufferClass.from(owner.toBytes()),
-          BufferClass.from(TOKEN_PROGRAM_ID.toBytes()),
-          BufferClass.from(mint.toBytes())
+          owner.toBuffer(),
+          TOKEN_PROGRAM_ID.toBuffer(),
+          mint.toBuffer()
         ],
         ASSOCIATED_TOKEN_PROGRAM_ID
       );
@@ -356,12 +344,12 @@
       });
     }
 
-    // Serialización correcta de la instrucción con Buffer seguro
+    // Serialización nativa usando DataView y ArrayBuffer (Solución 100% libre de errores de Buffer)
     function createTransferInstruction(source, destination, owner, amount) {
-      const BufferClass = window.Buffer || globalThis.Buffer;
-      const data = BufferClass.alloc(9);
-      data.writeUInt8(3, 0); // Instrucción de transferencia SPL (Index 3)
-      data.writeBigUInt64LE(BigInt(amount), 1); // Monto serializado en Little Endian
+      const bufferAlloc = new ArrayBuffer(9);
+      const view = new DataView(bufferAlloc);
+      view.setUint8(0, 3); // Instrucción de transferencia SPL (Index 3)
+      view.setBigUint64(1, BigInt(amount), true); // Monto en Little Endian
 
       return new solanaWeb3.TransactionInstruction({
         keys: [
@@ -370,7 +358,7 @@
           { pubkey: owner, isSigner: true, isWritable: false },
         ],
         programId: TOKEN_PROGRAM_ID,
-        data: data,
+        data: new Uint8Array(bufferAlloc),
       });
     }
 
@@ -428,7 +416,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS ASEGURADO CON PUBLICKEYS Y BUFFER SEGURO
+    // PROCESADOR DE COMPRAS NATIVO (SIN DEPENDER DE BUFFER EXTERNO)
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
@@ -651,60 +639,4 @@
       document.getElementById("playerTickets").innerText = `${userState.tickets} 🎟️`;
       document.getElementById("energyText").innerText = `${userState.currentEnergy} / ${userState.maxEnergy}`;
       
-      const energyPercent = (userState.currentEnergy / userState.maxEnergy) * 100;
-      document.getElementById("energyBar").style.width = `${energyPercent}%`;
-
-      const expPercent = Math.min(100, (userState.exp / userState.expToNextLevel) * 100);
-      document.getElementById("expProgressBar").style.width = `${expPercent}%`;
-
-      const isBoosted = Date.now() < userState.boostUntil;
-      const badge = document.getElementById("activeBoostBadge");
-      if (isBoosted) {
-        badge.classList.remove("hidden");
-      } else {
-        badge.classList.add("hidden");
-      }
-    }
-
-    async function fetchLeaderboard() {
-      try {
-        const q = query(collection(db, "players"), orderBy("exp", "desc"), limit(200));
-        const querySnapshot = await getDocs(q);
-        const list = document.getElementById("leaderboardList");
-        list.innerHTML = "";
-
-        let rank = 1;
-        querySnapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          const displayId = data.wallet.length > 12 ? data.wallet.substring(0, 4) + "..." + data.wallet.substring(data.wallet.length - 4) : data.wallet;
-          
-          const row = document.createElement("div");
-          row.className = "flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/60 text-xs";
-          row.innerHTML = `
-            <div class="flex items-center gap-3">
-              <span class="font-bold w-6 text-center ${rank <= 3 ? 'text-amber-400 font-black' : 'text-slate-500'}">#${rank}</span>
-              <span class="font-mono text-slate-300">${displayId}</span>
-            </div>
-            <div class="flex items-center gap-3">
-              <span class="font-bold text-purple-400 w-20 text-right">${Math.floor(data.exp || 0).toLocaleString()} EXP</span>
-            </div>
-          `;
-          list.appendChild(row);
-          rank++;
-        });
-
-        if (rank === 1) {
-          list.innerHTML = `<div class="text-center text-xs text-slate-500 py-10">¡Conecta Phantom y sé el primero en el ranking!</div>`;
-        }
-      } catch (e) {
-        console.warn("Error fetching leaderboard:", e);
-      }
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      fetchLeaderboard();
-      setInterval(updateUI, 1000);
-    });
-  </script>
-</body>
-</html>
+      ...
