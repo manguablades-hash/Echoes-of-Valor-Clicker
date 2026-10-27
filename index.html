@@ -308,7 +308,9 @@
     const WALLET_DEV = "58fEJ9Qqva5mCorBDNGdLmGn9LZZsKBk8HvnLeu8spR9";
     const WALLET_TREASURY = "63fYVE4goxmeXbnP3E7XeGz64j1QtFBL7UPGASQcoPB4";
     const WALLET_BURN = "1nc1nerator11111111111111111111111111111111"; // Incinerador oficial de Solana
-    const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
+    
+    // RPC Público optimizado para navegadores (Ankr en lugar del RPC oficial bloqueado)
+    const SOLANA_RPC = "https://rpc.ankr.com/solana";
 
     // Program IDs nativos de SPL Token
     const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
@@ -409,7 +411,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS BLINDADO CON TRY/CATCH PARA RPCs PÚBLICOS
+    // PROCESADOR DE COMPRAS CON RPC DE NAVEGADOR Y TRY/CATCH
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
@@ -445,7 +447,6 @@
 
         const transaction = new solanaWeb3.Transaction();
 
-        // Verificación segura con try/catch para evitar fallos de RPC públicos
         let userAccount = null;
         try { userAccount = await connection.getAccountInfo(userATA); } catch (e) {}
         if (!userAccount) {
