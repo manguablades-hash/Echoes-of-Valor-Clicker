@@ -74,7 +74,7 @@
       </div>
 
       <div class="flex items-center gap-2 sm:gap-4">
-        <!-- BOTÓN SUPER LLAMATIVO DE COMPRAR $VALOR -->
+        <!-- BOTÓN DE COMPRAR $VALOR -->
         <a href="https://pump.fun/coin/82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump" target="_blank" rel="noopener noreferrer" 
            class="btn-buy-glow flex items-center gap-2 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black px-4 py-2 rounded-xl text-xs sm:text-sm transition-all transform hover:scale-105 active:scale-95 border border-emerald-300/50">
           <span class="flex h-2 w-2 relative">
@@ -156,6 +156,29 @@
         </div>
       </div>
 
+      <!-- SISTEMA DE REFERIDOS / INVITADOS -->
+      <div class="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/30 rounded-2xl p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-3">
+          <div>
+            <h3 class="font-bold text-slate-100 text-base flex items-center gap-2">
+              <i data-lucide="users" class="w-5 h-5 text-amber-400"></i>
+              Gana 10% de EXP Invitando Amigos
+            </h3>
+            <p class="text-xs text-slate-400">Gana de forma pasiva el 10% de toda la EXP que generen tus invitados para dominar el Leaderboard.</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center gap-3 mt-2">
+          <div class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-400 truncate" id="referralLinkDisplay">
+            Conecta tu wallet para generar tu enlace único
+          </div>
+          <button onclick="copyReferralLink()" class="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition flex items-center justify-center gap-2 shrink-0">
+            <i data-lucide="copy" class="w-4 h-4"></i>
+            Copiar Enlace
+          </button>
+        </div>
+      </div>
+
       <!-- LA TABERNA DE CONTRATOS -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
         <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
@@ -227,8 +250,8 @@
           <i data-lucide="gift" class="w-5 h-5"></i>
         </div>
         <div>
-          <h4 class="text-xs font-bold text-purple-300 uppercase tracking-wide">Recompensas Semanales de Tesorería[cite: 1]</h4>
-          <p class="text-[11px] text-slate-300 mt-1">Todo lo acumulado en la Tesorería gracias a La Taberna se reparte <strong>semanalmente entre el Top 100</strong> del Leaderboard[cite: 1].</p>
+          <h4 class="text-xs font-bold text-purple-300 uppercase tracking-wide">Recompensas Semanales de Tesorería</h4>
+          <p class="text-[11px] text-slate-300 mt-1">Todo lo acumulado en la Tesorería gracias a La Taberna se reparte <strong>semanalmente entre el Top 100</strong> del Leaderboard.</p>
         </div>
       </div>
 
@@ -252,7 +275,7 @@
   <!-- Firebase & Solana Web3 Integration -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBVztk8p30_u7YTGxh2qSlvBx3ZjDBN1FY",
@@ -271,7 +294,7 @@
     const TOKEN_MINT = "82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump";
     const WALLET_DEV = "58fEJ9Qqva5mCorBDNGdLmGn9LZZsKBk8HvnLeu8spR9";
     const WALLET_TREASURY = "63fYVE4goxmeXbnP3E7XeGz64j1QtFBL7UPGASQcoPB4";
-    const WALLET_BURN = "11111111111111111111111111111111"; // Burn oficial de Solana
+    const WALLET_BURN = "11111111111111111111111111111111"; 
     const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
 
     let userState = {
@@ -283,10 +306,15 @@
       exp: 0,
       expToNextLevel: 100,
       tickets: 0,
-      boostUntil: 0
+      boostUntil: 0,
+      referredBy: null
     };
 
     lucide.createIcons();
+
+    // Detección de código de referido en la URL (?ref=WALLET)
+    const urlParams = new URLSearchParams(window.location.search);
+    const referrerFromUrl = urlParams.get('ref');
 
     window.connectWallet = async function() {
       try {
@@ -302,11 +330,25 @@
         document.getElementById("walletBtnText").innerText = address.substring(0, 4) + "..." + address.substring(address.length - 4);
         document.getElementById("walletDisplay").innerText = address;
 
+        // Generar enlace de referido personal
+        const refLink = `${window.location.origin}${window.location.pathname}?ref=${address}`;
+        document.getElementById("referralLinkDisplay").innerText = refLink;
+
         await loadCloudState();
         fetchLeaderboard();
       } catch (err) {
         console.error("Wallet error:", err);
       }
+    };
+
+    window.copyReferralLink = function() {
+      if (!userState.wallet) {
+        alert("Primero conecta tu Phantom Wallet.");
+        return;
+      }
+      const refLink = `${window.location.origin}${window.location.pathname}?ref=${userState.wallet}`;
+      navigator.clipboard.writeText(refLink);
+      alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
     // PROCESADOR DE COMPRAS EN BLOCKCHAIN VÍA PHANTOM
@@ -346,15 +388,9 @@
 
         const transaction = new solanaWeb3.Transaction();
 
-        transaction.add(
-          splToken.createTransferInstruction(userATA, devATA, userPubkey, devAmount)
-        );
-        transaction.add(
-          splToken.createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount)
-        );
-        transaction.add(
-          splToken.createTransferInstruction(userATA, burnATA, userPubkey, burnAmount)
-        );
+        transaction.add(splToken.createTransferInstruction(userATA, devATA, userPubkey, devAmount));
+        transaction.add(splToken.createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount));
+        transaction.add(splToken.createTransferInstruction(userATA, burnATA, userPubkey, burnAmount));
 
         transaction.feePayer = userPubkey;
         const { blockhash } = await connection.getLatestBlockhash();
@@ -399,8 +435,13 @@
           userState.currentEnergy = data.currentEnergy !== undefined ? data.currentEnergy : 12;
           userState.lastEnergyUpdate = data.lastEnergyUpdate || Date.now();
           userState.boostUntil = data.boostUntil || 0;
+          userState.referredBy = data.referredBy || null;
           userState.expToNextLevel = userState.level * 100;
         } else {
+          // Asignar referido solo si viene de un enlace de invitación diferente a su propia wallet
+          if (referrerFromUrl && referrerFromUrl !== userState.wallet) {
+            userState.referredBy = referrerFromUrl;
+          }
           await saveCloudState();
         }
       } catch (e) {
@@ -423,6 +464,7 @@
           currentEnergy: userState.currentEnergy,
           lastEnergyUpdate: userState.lastEnergyUpdate,
           boostUntil: userState.boostUntil,
+          referredBy: userState.referredBy || null,
           updatedAt: Date.now()
         }, { merge: true });
       } catch (e) {
@@ -443,7 +485,7 @@
       }
     }
 
-    window.handleTap = function(e) {
+    window.handleTap = async function(e) {
       if (!userState.wallet) {
         alert("Por favor conecta tu Phantom Wallet para jugar.");
         return;
@@ -468,6 +510,19 @@
         userState.level += 1;
         userState.tickets += 1;
         userState.expToNextLevel = userState.level * 100;
+      }
+
+      // COMISIÓN DEL 10% DE EXP PARA EL ANFITRIÓN
+      if (userState.referredBy) {
+        const referrerBonusExp = expGained * 0.10;
+        try {
+          const referrerRef = doc(db, "players", userState.referredBy);
+          await updateDoc(referrerRef, {
+            exp: increment(referrerBonusExp)
+          });
+        } catch (err) {
+          console.warn("No se pudo acreditar la EXP al referido:", err);
+        }
       }
 
       saveCloudState();
@@ -530,7 +585,7 @@
               <span class="font-mono text-slate-300">${displayId}</span>
             </div>
             <div class="flex items-center gap-3">
-              <span class="font-bold text-purple-400 w-20 text-right">${(data.exp || 0).toLocaleString()} EXP</span>
+              <span class="font-bold text-purple-400 w-20 text-right">${Math.floor(data.exp || 0).toLocaleString()} EXP</span>
             </div>
           `;
           list.appendChild(row);
