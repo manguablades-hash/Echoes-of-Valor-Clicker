@@ -29,18 +29,18 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- ========================================== -->
-  <!-- 1. POLYFILL GLOBAL DE BUFFER (OBLIGATORIO) -->
-  <!-- ========================================== -->
+  <!-- ========================================================== -->
+  <!-- 1. POLYFILL DE BUFFER ROBUSTO PARA EL NAVEGADOR Y GITHUB PAGES -->
+  <!-- ========================================================== -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
   <script>
     if (typeof window !== 'undefined') {
-      window.Buffer = buffer.Buffer;
-      globalThis.Buffer = buffer.Buffer;
+      window.Buffer = window.Buffer || buffer.Buffer;
+      globalThis.Buffer = globalThis.Buffer || buffer.Buffer;
     }
   </script>
 
-  <!-- 2. Solana Web3.js -->
+  <!-- 2. Solana Web3.js cargado de forma síncrona -->
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 
   <style>
@@ -326,13 +326,14 @@
     const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
     const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
-    // Función ATA utilizando Buffer.from(...) para las semillas requeridas por Web3.js
+    // Función ATA utilizando Buffer global seguro para Web3.js
     async function getAssociatedTokenAddress(mint, owner) {
+      const BufferClass = window.Buffer || globalThis.Buffer;
       const res = await solanaWeb3.PublicKey.findProgramAddress(
         [
-          Buffer.from(owner.toBytes()),
-          Buffer.from(TOKEN_PROGRAM_ID.toBytes()),
-          Buffer.from(mint.toBytes())
+          BufferClass.from(owner.toBytes()),
+          BufferClass.from(TOKEN_PROGRAM_ID.toBytes()),
+          BufferClass.from(mint.toBytes())
         ],
         ASSOCIATED_TOKEN_PROGRAM_ID
       );
@@ -355,9 +356,10 @@
       });
     }
 
-    // Serialización correcta de la instrucción con Buffer para el monto de transferencia
+    // Serialización correcta de la instrucción con Buffer seguro
     function createTransferInstruction(source, destination, owner, amount) {
-      const data = Buffer.alloc(9);
+      const BufferClass = window.Buffer || globalThis.Buffer;
+      const data = BufferClass.alloc(9);
       data.writeUInt8(3, 0); // Instrucción de transferencia SPL (Index 3)
       data.writeBigUInt64LE(BigInt(amount), 1); // Monto serializado en Little Endian
 
@@ -426,7 +428,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS ASEGURADO CON PUBLICKEYS Y BUFFER
+    // PROCESADOR DE COMPRAS ASEGURADO CON PUBLICKEYS Y BUFFER SEGURO
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
