@@ -29,10 +29,6 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Solana Web3.js & SPL Token (Globales sincronizados) -->
-  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-  <script src="https://unpkg.com/@solana/spl-token@latest/lib/index.iife.min.js"></script>
-
   <style>
     @keyframes pulse-glow {
       0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.4)); }
@@ -286,10 +282,12 @@
     </div>
   </main>
 
-  <!-- Firebase & Solana Web3 Integration -->
+  <!-- Firebase & Solana Web3 Integration (Módulos ES unificados) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import * as solanaWeb3 from "https://esm.sh/@solana/web3.js@latest";
+    import * as splToken from "https://esm.sh/@solana/spl-token@latest";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBVztk8p30_u7YTGxh2qSlvBx3ZjDBN1FY",
@@ -394,39 +392,37 @@
 
         alert(`Abriendo Phantom para confirmar el pago de ${costTokens.toLocaleString()} $VALOR...`);
 
-        const splTokenLib = window.splToken || window.solanaSplToken;
-
-        const userATA = await splTokenLib.getAssociatedTokenAddress(mintPubkey, userPubkey);
-        const devATA = await splTokenLib.getAssociatedTokenAddress(mintPubkey, devPubkey);
-        const treasuryATA = await splTokenLib.getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
-        const burnATA = await splTokenLib.getAssociatedTokenAddress(mintPubkey, burnPubkey);
+        const userATA = await splToken.getAssociatedTokenAddress(mintPubkey, userPubkey);
+        const devATA = await splToken.getAssociatedTokenAddress(mintPubkey, devPubkey);
+        const treasuryATA = await splToken.getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
+        const burnATA = await splToken.getAssociatedTokenAddress(mintPubkey, burnPubkey);
 
         const transaction = new solanaWeb3.Transaction();
 
         const devAccount = await connection.getAccountInfo(devATA);
         if (!devAccount) {
           transaction.add(
-            splTokenLib.createAssociatedTokenAccountInstruction(userPubkey, devATA, devPubkey, mintPubkey)
+            splToken.createAssociatedTokenAccountInstruction(userPubkey, devATA, devPubkey, mintPubkey)
           );
         }
 
         const treasuryAccount = await connection.getAccountInfo(treasuryATA);
         if (!treasuryAccount) {
           transaction.add(
-            splTokenLib.createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, treasuryPubkey, mintPubkey)
+            splToken.createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, treasuryPubkey, mintPubkey)
           );
         }
 
         const burnAccount = await connection.getAccountInfo(burnATA);
         if (!burnAccount) {
           transaction.add(
-            splTokenLib.createAssociatedTokenAccountInstruction(userPubkey, burnATA, burnPubkey, mintPubkey)
+            splToken.createAssociatedTokenAccountInstruction(userPubkey, burnATA, burnPubkey, mintPubkey)
           );
         }
 
-        transaction.add(splTokenLib.createTransferInstruction(userATA, devATA, userPubkey, devAmount));
-        transaction.add(splTokenLib.createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount));
-        transaction.add(splTokenLib.createTransferInstruction(userATA, burnATA, userPubkey, burnAmount));
+        transaction.add(splToken.createTransferInstruction(userATA, devATA, userPubkey, devAmount));
+        transaction.add(splToken.createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount));
+        transaction.add(splToken.createTransferInstruction(userATA, burnATA, userPubkey, burnAmount));
 
         transaction.feePayer = userPubkey;
         const { blockhash } = await connection.getLatestBlockhash();
