@@ -409,7 +409,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS NATIVO CON ASYNC ATA
+    // PROCESADOR DE COMPRAS BLINDADO CON TRY/CATCH PARA RPCs PÚBLICOS
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
@@ -445,22 +445,27 @@
 
         const transaction = new solanaWeb3.Transaction();
 
-        const userAccount = await connection.getAccountInfo(userATA);
+        // Verificación segura con try/catch para evitar fallos de RPC públicos
+        let userAccount = null;
+        try { userAccount = await connection.getAccountInfo(userATA); } catch (e) {}
         if (!userAccount) {
           transaction.add(createAssociatedTokenAccountInstruction(userPubkey, userATA, userPubkey, mintPubkey));
         }
 
-        const devAccount = await connection.getAccountInfo(devATA);
+        let devAccount = null;
+        try { devAccount = await connection.getAccountInfo(devATA); } catch (e) {}
         if (!devAccount) {
           transaction.add(createAssociatedTokenAccountInstruction(userPubkey, devATA, devPubkey, mintPubkey));
         }
 
-        const treasuryAccount = await connection.getAccountInfo(treasuryATA);
+        let treasuryAccount = null;
+        try { treasuryAccount = await connection.getAccountInfo(treasuryATA); } catch (e) {}
         if (!treasuryAccount) {
           transaction.add(createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, treasuryPubkey, mintPubkey));
         }
 
-        const burnAccount = await connection.getAccountInfo(burnATA);
+        let burnAccount = null;
+        try { burnAccount = await connection.getAccountInfo(burnATA); } catch (e) {}
         if (!burnAccount) {
           transaction.add(createAssociatedTokenAccountInstruction(userPubkey, burnATA, burnPubkey, mintPubkey));
         }
