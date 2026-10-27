@@ -39,6 +39,13 @@
       50% { transform: scale(1.04); filter: drop-shadow(0 0 30px rgba(245, 158, 11, 0.8)); }
     }
     .orb-active { animation: pulse-glow 3s infinite ease-in-out; }
+    
+    @keyframes emerald-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+      50% { box-shadow: 0 0 25px rgba(16, 185, 129, 0.8); }
+    }
+    .btn-buy-glow { animation: emerald-glow 2s infinite ease-in-out; }
+
     .floating-text {
       position: absolute;
       animation: floatUp 0.8s ease-out forwards;
@@ -67,10 +74,15 @@
       </div>
 
       <div class="flex items-center gap-2 sm:gap-4">
+        <!-- BOTÓN SUPER LLAMATIVO DE COMPRAR $VALOR -->
         <a href="https://pump.fun/coin/82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump" target="_blank" rel="noopener noreferrer" 
-           class="hidden sm:flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
-          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-          Pump.fun
+           class="btn-buy-glow flex items-center gap-2 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black px-4 py-2 rounded-xl text-xs sm:text-sm transition-all transform hover:scale-105 active:scale-95 border border-emerald-300/50">
+          <span class="flex h-2 w-2 relative">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-950 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-slate-950"></span>
+          </span>
+          <i data-lucide="rocket" class="w-4 h-4 text-slate-950 fill-current"></i>
+          <span>Comprar $VALOR</span>
         </a>
 
         <button id="connectWalletBtn" onclick="connectWallet()" class="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm transition shadow-lg shadow-amber-500/20">
@@ -215,8 +227,8 @@
           <i data-lucide="gift" class="w-5 h-5"></i>
         </div>
         <div>
-          <h4 class="text-xs font-bold text-purple-300 uppercase tracking-wide">Recompensas Semanales de Tesorería</h4>
-          <p class="text-[11px] text-slate-300 mt-1">Todo lo acumulado en la Tesorería gracias a La Taberna se reparte <strong>semanalmente entre el Top 100</strong> del Leaderboard.</p>
+          <h4 class="text-xs font-bold text-purple-300 uppercase tracking-wide">Recompensas Semanales de Tesorería[cite: 1]</h4>
+          <p class="text-[11px] text-slate-300 mt-1">Todo lo acumulado en la Tesorería gracias a La Taberna se reparte <strong>semanalmente entre el Top 100</strong> del Leaderboard[cite: 1].</p>
         </div>
       </div>
 
