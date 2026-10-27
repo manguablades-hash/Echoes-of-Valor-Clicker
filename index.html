@@ -29,10 +29,11 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Polyfill de Buffer (OBLIGATORIO para que Solana Web3.js funcione en el navegador) -->
+  <!-- Polyfill de Buffer (Definitivo para ventana y globalThis) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
   <script>
     window.Buffer = buffer.Buffer;
+    globalThis.Buffer = buffer.Buffer;
   </script>
 
   <!-- Solana Web3.js -->
@@ -315,7 +316,6 @@
     const WALLET_TREASURY = "63fYVE4goxmeXbnP3E7XeGz64j1QtFBL7UPGASQcoPB4";
     const WALLET_BURN = "1nc1nerator11111111111111111111111111111111"; // Incinerador oficial de Solana
     
-    // Nodo RPC altamente estable y abierto para navegadores
     const SOLANA_RPC = "https://solana-rpc.publicnode.com";
 
     // Program IDs nativos de SPL Token
@@ -324,7 +324,11 @@
 
     async function getAssociatedTokenAddress(mint, owner) {
       const res = await solanaWeb3.PublicKey.findProgramAddress(
-        [owner.toBytes(), TOKEN_PROGRAM_ID.toBytes(), mint.toBytes()],
+        [
+          Buffer.from(owner.toBytes()),
+          Buffer.from(TOKEN_PROGRAM_ID.toBytes()),
+          Buffer.from(mint.toBytes())
+        ],
         ASSOCIATED_TOKEN_PROGRAM_ID
       );
       return res[0];
@@ -417,7 +421,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS BLINDADO CON BUFFER Y RPC ESTABLE
+    // PROCESADOR DE COMPRAS BLINDADO CON BUFFER GLOBAL Y SEEDS EXPLÍCITAS
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
