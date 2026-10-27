@@ -29,7 +29,14 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Solana Web3.js (Nativo puro sin Buffer) -->
+  <!-- Polyfill de Buffer OBLIGATORIO antes de cargar Solana Web3.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
+  <script>
+    window.Buffer = buffer.Buffer;
+    globalThis.Buffer = buffer.Buffer;
+  </script>
+
+  <!-- Solana Web3.js -->
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 
   <style>
@@ -315,13 +322,12 @@
     const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
     const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
-    // Función que calcula la ATA usando Uint8Array puro (SIN BUFFER)
     async function getAssociatedTokenAddress(mint, owner) {
       const res = await solanaWeb3.PublicKey.findProgramAddress(
         [
-          owner.toBytes(),
-          TOKEN_PROGRAM_ID.toBytes(),
-          mint.toBytes()
+          Buffer.from(owner.toBytes()),
+          Buffer.from(TOKEN_PROGRAM_ID.toBytes()),
+          Buffer.from(mint.toBytes())
         ],
         ASSOCIATED_TOKEN_PROGRAM_ID
       );
@@ -415,7 +421,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS LIMPIO (SIN BUFFER)
+    // PROCESADOR DE COMPRAS CON BUFFER GLOBAL RESTAURADO
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
@@ -466,7 +472,7 @@
         let treasuryAccount = null;
         try { treasuryAccount = await connection.getAccountInfo(treasuryATA); } catch (e) {}
         if (!treasuryAccount) {
-          transaction.add(createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, treasuryPubkey, mintPubkey));
+          transaction.add(createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, userPubkey, mintPubkey));
         }
 
         let burnAccount = null;
