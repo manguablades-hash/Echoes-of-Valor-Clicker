@@ -29,11 +29,15 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- 1. Polyfill de Buffer OBLIGATORIO para el navegador (Soluciona 'Expected Buffer') -->
+  <!-- ========================================== -->
+  <!-- 1. POLYFILL GLOBAL DE BUFFER (OBLIGATORIO) -->
+  <!-- ========================================== -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
   <script>
-    window.Buffer = buffer.Buffer;
-    globalThis.Buffer = buffer.Buffer;
+    if (typeof window !== 'undefined') {
+      window.Buffer = buffer.Buffer;
+      globalThis.Buffer = buffer.Buffer;
+    }
   </script>
 
   <!-- 2. Solana Web3.js -->
