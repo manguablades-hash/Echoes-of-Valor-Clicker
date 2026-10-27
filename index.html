@@ -167,7 +167,7 @@
               <h4 class="text-xs font-bold text-slate-200">Brebaje de Furia</h4>
               <p class="text-[11px] text-slate-400 mt-1">Multiplica x10 tu EXP en todos los taps durante 1 hora.</p>
             </div>
-            <button id="buyBtnBrebaje" onclick="buyItem('brebaje')" class="mt-3 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition">
+            <button onclick="buyItem('brebaje')" class="mt-3 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition">
               300,000 $VALOR
             </button>
           </div>
@@ -182,7 +182,7 @@
               <h4 class="text-xs font-bold text-slate-200">Recarga de Elixir</h4>
               <p class="text-[11px] text-slate-400 mt-1">Recarga tu barra de energía a 12/12 al instante.</p>
             </div>
-            <button id="buyBtnElixir" onclick="buyItem('elixir')" class="mt-3 w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition">
+            <button onclick="buyItem('elixir')" class="mt-3 w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition">
               150,000 $VALOR
             </button>
           </div>
@@ -197,7 +197,7 @@
               <h4 class="text-xs font-bold text-slate-200">Pase de Aventura</h4>
               <p class="text-[11px] text-slate-400 mt-1">Añade 5 boletos extra directamente para el sorteo de la Beta.</p>
             </div>
-            <button id="buyBtnPase" onclick="buyItem('pase')" class="mt-3 w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-1.5 rounded-lg text-xs transition">
+            <button onclick="buyItem('pase')" class="mt-3 w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-1.5 rounded-lg text-xs transition">
               500,000 $VALOR
             </button>
           </div>
@@ -206,9 +206,22 @@
 
     </div>
 
-    <!-- Right Column: Leaderboard -->
+    <!-- Right Column: Leaderboard & Treasury Rewards Info -->
     <div class="lg:col-span-5 flex flex-col gap-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col h-[500px]">
+      
+      <!-- Treasury Notice Card -->
+      <div class="bg-gradient-to-r from-purple-900/40 to-slate-900 border border-purple-500/30 rounded-2xl p-4 shadow-xl flex items-start gap-3">
+        <div class="p-2 bg-purple-500/20 rounded-xl text-purple-400 mt-0.5">
+          <i data-lucide="gift" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h4 class="text-xs font-bold text-purple-300 uppercase tracking-wide">Recompensas Semanales de Tesorería</h4>
+          <p class="text-[11px] text-slate-300 mt-1">Todo lo acumulado en la Tesorería gracias a La Taberna se reparte <strong>semanalmente entre el Top 100</strong> del Leaderboard.</p>
+        </div>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col h-[420px]">
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-bold text-slate-200 flex items-center gap-2">
             <i data-lucide="trophy" class="w-4 h-4 text-amber-400"></i>
@@ -302,12 +315,10 @@
         const userPubkey = new solanaWeb3.PublicKey(userState.wallet);
         const mintPubkey = new solanaWeb3.PublicKey(TOKEN_MINT);
 
-        // Direcciones de las 3 wallets destino
         const devPubkey = new solanaWeb3.PublicKey(WALLET_DEV);
         const treasuryPubkey = new solanaWeb3.PublicKey(WALLET_TREASURY);
         const burnPubkey = new solanaWeb3.PublicKey(WALLET_BURN);
 
-        // Cálculo del reparto 30% / 30% / 40% (Asumiendo 6 decimales estándar en SPL Token)
         const decimals = 6;
         const totalAmountUnits = BigInt(costTokens) * BigInt(10 ** decimals);
         const devAmount = (totalAmountUnits * BigInt(30)) / BigInt(100);
@@ -316,7 +327,6 @@
 
         alert(`Abriendo Phantom para confirmar el pago de ${costTokens.toLocaleString()} $VALOR...`);
 
-        // Obtener cuentas asociadas del token SPL
         const userATA = await splToken.getAssociatedTokenAddress(mintPubkey, userPubkey);
         const devATA = await splToken.getAssociatedTokenAddress(mintPubkey, devPubkey);
         const treasuryATA = await splToken.getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
@@ -324,15 +334,12 @@
 
         const transaction = new solanaWeb3.Transaction();
 
-        // Instrucción 1: 30% a Wallet Dev
         transaction.add(
           splToken.createTransferInstruction(userATA, devATA, userPubkey, devAmount)
         );
-        // Instrucción 2: 30% a Wallet Treasury
         transaction.add(
           splToken.createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount)
         );
-        // Instrucción 3: 40% a Wallet Burn
         transaction.add(
           splToken.createTransferInstruction(userATA, burnATA, userPubkey, burnAmount)
         );
@@ -341,13 +348,11 @@
         const { blockhash } = await connection.getLatestBlockhash();
         transaction.recentBlockhash = blockhash;
 
-        // Firma y envío directo con Phantom
         const { signature } = await window.solana.signAndSendTransaction(transaction);
         await connection.confirmTransaction(signature);
 
         alert(`¡Transacción confirmada en Solana! (Sig: ${signature.substring(0, 8)}...)`);
 
-        // APLICAR BENEFICIOS EN EL JUEGO TRAS PAGO EXITOSO
         if (itemType === 'brebaje') {
           userState.boostUntil = Date.now() + (60 * 60 * 1000);
           alert("¡Brebaje de Furia activado! Tienes 1 hora de x10 EXP.");
