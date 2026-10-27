@@ -29,6 +29,9 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
+  <!-- Solana Web3.js (Nativo y unificado) -->
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+
   <style>
     @keyframes pulse-glow {
       0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.4)); }
@@ -282,12 +285,10 @@
     </div>
   </main>
 
-  <!-- Firebase & Solana Web3 Integration (Módulos ES unificados) -->
+  <!-- Firebase & Solana Web3 Integration -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    import * as solanaWeb3 from "https://esm.sh/@solana/web3.js@latest";
-    import * as splToken from "https://esm.sh/@solana/spl-token@latest";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBVztk8p30_u7YTGxh2qSlvBx3ZjDBN1FY",
@@ -308,6 +309,51 @@
     const WALLET_TREASURY = "63fYVE4goxmeXbnP3E7XeGz64j1QtFBL7UPGASQcoPB4";
     const WALLET_BURN = "1nc1nerator11111111111111111111111111111111"; // Incinerador oficial de Solana
     const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
+
+    // IDs de programas SPL Token nativos del navegador (Sin dependencias externas conflictivas)
+    const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+
+    function getAssociatedTokenAddress(mint, owner) {
+      const [address] = solanaWeb3.PublicKey.findProgramAddressSync(
+        [owner.toBytes(), TOKEN_PROGRAM_ID.toBytes(), mint.toBytes()],
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      return address;
+    }
+
+    function createAssociatedTokenAccountInstruction(payer, associatedToken, owner, mint) {
+      return new solanaWeb3.TransactionInstruction({
+        keys: [
+          { pubkey: payer, isSigner: true, isWritable: true },
+          { pubkey: associatedToken, isSigner: false, isWritable: true },
+          { pubkey: owner, isSigner: false, isWritable: false },
+          { pubkey: mint, isSigner: false, isWritable: false },
+          { pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+          { pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+        ],
+        programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+        data: new Uint8Array(0),
+      });
+    }
+
+    function createTransferInstruction(source, destination, owner, amount) {
+      const data = new Uint8Array(9);
+      data[0] = 3; // Instrucción de transferencia en SPL Token
+      const view = new DataView(data.buffer);
+      view.setBigUint64(1, BigInt(amount), true);
+
+      return new solanaWeb3.TransactionInstruction({
+        keys: [
+          { pubkey: source, isSigner: false, isWritable: true },
+          { pubkey: destination, isSigner: false, isWritable: true },
+          { pubkey: owner, isSigner: true, isWritable: false },
+        ],
+        programId: TOKEN_PROGRAM_ID,
+        data: data,
+      });
+    }
 
     let userState = {
       wallet: null,
@@ -363,7 +409,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR ROBUSTO DE COMPRAS EN BLOCKCHAIN
+    // PROCESADOR DE COMPRAS NATIVO (LIBRE DE ERRORES DE BUFFER)
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
@@ -392,37 +438,31 @@
 
         alert(`Abriendo Phantom para confirmar el pago de ${costTokens.toLocaleString()} $VALOR...`);
 
-        const userATA = await splToken.getAssociatedTokenAddress(mintPubkey, userPubkey);
-        const devATA = await splToken.getAssociatedTokenAddress(mintPubkey, devPubkey);
-        const treasuryATA = await splToken.getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
-        const burnATA = await splToken.getAssociatedTokenAddress(mintPubkey, burnPubkey);
+        const userATA = getAssociatedTokenAddress(mintPubkey, userPubkey);
+        const devATA = getAssociatedTokenAddress(mintPubkey, devPubkey);
+        const treasuryATA = getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
+        const burnATA = getAssociatedTokenAddress(mintPubkey, burnPubkey);
 
         const transaction = new solanaWeb3.Transaction();
 
         const devAccount = await connection.getAccountInfo(devATA);
         if (!devAccount) {
-          transaction.add(
-            splToken.createAssociatedTokenAccountInstruction(userPubkey, devATA, devPubkey, mintPubkey)
-          );
+          transaction.add(createAssociatedTokenAccountInstruction(userPubkey, devATA, devPubkey, mintPubkey));
         }
 
         const treasuryAccount = await connection.getAccountInfo(treasuryATA);
         if (!treasuryAccount) {
-          transaction.add(
-            splToken.createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, treasuryPubkey, mintPubkey)
-          );
+          transaction.add(createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, treasuryPubkey, mintPubkey));
         }
 
         const burnAccount = await connection.getAccountInfo(burnATA);
         if (!burnAccount) {
-          transaction.add(
-            splToken.createAssociatedTokenAccountInstruction(userPubkey, burnATA, burnPubkey, mintPubkey)
-          );
+          transaction.add(createAssociatedTokenAccountInstruction(userPubkey, burnATA, burnPubkey, mintPubkey));
         }
 
-        transaction.add(splToken.createTransferInstruction(userATA, devATA, userPubkey, devAmount));
-        transaction.add(splToken.createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount));
-        transaction.add(splToken.createTransferInstruction(userATA, burnATA, userPubkey, burnAmount));
+        transaction.add(createTransferInstruction(userATA, devATA, userPubkey, devAmount));
+        transaction.add(createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount));
+        transaction.add(createTransferInstruction(userATA, burnATA, userPubkey, burnAmount));
 
         transaction.feePayer = userPubkey;
         const { blockhash } = await connection.getLatestBlockhash();
