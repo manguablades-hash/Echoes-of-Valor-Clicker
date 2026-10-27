@@ -294,7 +294,7 @@
     const TOKEN_MINT = "82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump";
     const WALLET_DEV = "58fEJ9Qqva5mCorBDNGdLmGn9LZZsKBk8HvnLeu8spR9";
     const WALLET_TREASURY = "63fYVE4goxmeXbnP3E7XeGz64j1QtFBL7UPGASQcoPB4";
-    const WALLET_BURN = "11111111111111111111111111111111"; 
+    const WALLET_BURN = "1nc1nerator11111111111111111111111111111111"; // Incinerador oficial de Solana
     const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
 
     let userState = {
@@ -310,11 +310,10 @@
       referredBy: null
     };
 
-    let pendingReferralExp = 0; // Acumulador local para evitar saturar Firebase
+    let pendingReferralExp = 0;
 
     lucide.createIcons();
 
-    // Detección de código de referido en la URL (?ref=WALLET)
     const urlParams = new URLSearchParams(window.location.search);
     const referrerFromUrl = urlParams.get('ref');
 
@@ -332,7 +331,6 @@
         document.getElementById("walletBtnText").innerText = address.substring(0, 4) + "..." + address.substring(address.length - 4);
         document.getElementById("walletDisplay").innerText = address;
 
-        // Generar enlace de referido personal
         const refLink = `${window.location.origin}${window.location.pathname}?ref=${address}`;
         document.getElementById("referralLinkDisplay").innerText = refLink;
 
@@ -353,7 +351,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS EN BLOCKCHAIN VÍA PHANTOM
+    // PROCESADOR ROBUSTO DE COMPRAS EN BLOCKCHAIN
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
@@ -361,10 +359,9 @@
       }
 
       let costTokens = 0;
-      let itemName = "";
-      if (itemType === 'brebaje') { costTokens = 300000; itemName = "Brebaje de Furia"; }
-      if (itemType === 'elixir') { costTokens = 150000; itemName = "Recarga de Elixir"; }
-      if (itemType === 'pase') { costTokens = 500000; itemName = "Pase de Aventura"; }
+      if (itemType === 'brebaje') costTokens = 300000;
+      if (itemType === 'elixir') costTokens = 150000;
+      if (itemType === 'pase') costTokens = 500000;
 
       try {
         const connection = new solanaWeb3.Connection(SOLANA_RPC, 'confirmed');
@@ -390,6 +387,29 @@
 
         const transaction = new solanaWeb3.Transaction();
 
+        // Verificar si las cuentas ATA existen o crearlas en la marcha
+        const devAccount = await connection.getAccountInfo(devATA);
+        if (!devAccount) {
+          transaction.add(
+            splToken.createAssociatedTokenAccountInstruction(userPubkey, devATA, devPubkey, mintPubkey)
+          );
+        }
+
+        const treasuryAccount = await connection.getAccountInfo(treasuryATA);
+        if (!treasuryAccount) {
+          transaction.add(
+            splToken.createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, treasuryPubkey, mintPubkey)
+          );
+        }
+
+        const burnAccount = await connection.getAccountInfo(burnATA);
+        if (!burnAccount) {
+          transaction.add(
+            splToken.createAssociatedTokenAccountInstruction(userPubkey, burnATA, burnPubkey, mintPubkey)
+          );
+        }
+
+        // Agregar instrucciones de transferencia
         transaction.add(splToken.createTransferInstruction(userATA, devATA, userPubkey, devAmount));
         transaction.add(splToken.createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount));
         transaction.add(splToken.createTransferInstruction(userATA, burnATA, userPubkey, burnAmount));
@@ -419,7 +439,7 @@
 
       } catch (e) {
         console.error("Error procesando la transacción:", e);
-        alert("Transacción cancelada o saldo insuficiente de $VALOR en Phantom.");
+        alert("Error al procesar la transacción en Phantom. Verifica que tengas saldo suficiente de SOL para comisiones.");
       }
     };
 
@@ -469,10 +489,9 @@
           updatedAt: Date.now()
         }, { merge: true });
 
-        // Enviar acumulación de EXP del referido en lote (batch)
         if (userState.referredBy && pendingReferralExp > 0) {
           const expToSend = pendingReferralExp;
-          pendingReferralExp = 0; // Reset local
+          pendingReferralExp = 0;
           const referrerRef = doc(db, "players", userState.referredBy);
           await updateDoc(referrerRef, {
             exp: increment(expToSend)
@@ -518,7 +537,6 @@
       const expGained = 1 * multiplier;
       userState.exp += expGained;
 
-      // Acumular el 10% de EXP de referido de forma local (sin sobrecargar Firebase)
       if (userState.referredBy) {
         pendingReferralExp += (expGained * 0.10);
       }
