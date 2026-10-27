@@ -29,7 +29,13 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Solana Web3.js (Nativo y unificado) -->
+  <!-- Polyfill de Buffer (OBLIGATORIO para que Solana Web3.js funcione en el navegador) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
+  <script>
+    window.Buffer = buffer.Buffer;
+  </script>
+
+  <!-- Solana Web3.js -->
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 
   <style>
@@ -411,7 +417,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS CON BLOQUEO DE BLOCKHASH SEGURO
+    // PROCESADOR DE COMPRAS BLINDADO CON BUFFER Y RPC ESTABLE
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
@@ -477,7 +483,6 @@
 
         transaction.feePayer = userPubkey;
         
-        // Obtención robusta del blockhash reciente
         const { blockhash } = await connection.getLatestBlockhash('confirmed');
         transaction.recentBlockhash = blockhash;
 
