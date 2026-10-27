@@ -372,6 +372,12 @@
         return;
       }
 
+      const splTokenLib = window.splToken || window.solanaSplToken;
+      if (!splTokenLib) {
+        alert("Error: La librería de Solana SPL Token no está disponible. Recarga la página.");
+        return;
+      }
+
       let costTokens = 0;
       if (itemType === 'brebaje') costTokens = 300000;
       if (itemType === 'elixir') costTokens = 150000;
@@ -394,39 +400,37 @@
 
         alert(`Abriendo Phantom para confirmar el pago de ${costTokens.toLocaleString()} $VALOR...`);
 
-        const userATA = await splToken.getAssociatedTokenAddress(mintPubkey, userPubkey);
-        const devATA = await splToken.getAssociatedTokenAddress(mintPubkey, devPubkey);
-        const treasuryATA = await splToken.getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
-        const burnATA = await splToken.getAssociatedTokenAddress(mintPubkey, burnPubkey);
+        const userATA = await splTokenLib.getAssociatedTokenAddress(mintPubkey, userPubkey);
+        const devATA = await splTokenLib.getAssociatedTokenAddress(mintPubkey, devPubkey);
+        const treasuryATA = await splTokenLib.getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
+        const burnATA = await splTokenLib.getAssociatedTokenAddress(mintPubkey, burnPubkey);
 
         const transaction = new solanaWeb3.Transaction();
 
-        // Verificar si las cuentas ATA existen o crearlas en la marcha
         const devAccount = await connection.getAccountInfo(devATA);
         if (!devAccount) {
           transaction.add(
-            splToken.createAssociatedTokenAccountInstruction(userPubkey, devATA, devPubkey, mintPubkey)
+            splTokenLib.createAssociatedTokenAccountInstruction(userPubkey, devATA, devPubkey, mintPubkey)
           );
         }
 
         const treasuryAccount = await connection.getAccountInfo(treasuryATA);
         if (!treasuryAccount) {
           transaction.add(
-            splToken.createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, treasuryPubkey, mintPubkey)
+            splTokenLib.createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, treasuryPubkey, mintPubkey)
           );
         }
 
         const burnAccount = await connection.getAccountInfo(burnATA);
         if (!burnAccount) {
           transaction.add(
-            splToken.createAssociatedTokenAccountInstruction(userPubkey, burnATA, burnPubkey, mintPubkey)
+            splTokenLib.createAssociatedTokenAccountInstruction(userPubkey, burnATA, burnPubkey, mintPubkey)
           );
         }
 
-        // Agregar instrucciones de transferencia
-        transaction.add(splToken.createTransferInstruction(userATA, devATA, userPubkey, devAmount));
-        transaction.add(splToken.createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount));
-        transaction.add(splToken.createTransferInstruction(userATA, burnATA, userPubkey, burnAmount));
+        transaction.add(splTokenLib.createTransferInstruction(userATA, devATA, userPubkey, devAmount));
+        transaction.add(splTokenLib.createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount));
+        transaction.add(splTokenLib.createTransferInstruction(userATA, burnATA, userPubkey, burnAmount));
 
         transaction.feePayer = userPubkey;
         const { blockhash } = await connection.getLatestBlockhash();
@@ -453,7 +457,7 @@
 
       } catch (e) {
         console.error("Error procesando la transacción:", e);
-        alert("Error al procesar la transacción en Phantom. Verifica que tengas saldo suficiente de SOL para comisiones.");
+        alert("Error en la transacción: " + (e.message || JSON.stringify(e)));
       }
     };
 
