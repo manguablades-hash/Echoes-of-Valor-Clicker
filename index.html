@@ -29,7 +29,14 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Solana Web3.js (Nativo puro) -->
+  <!-- 1. Polyfill de Buffer OBLIGATORIO para el navegador (Soluciona 'Expected Buffer') -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
+  <script>
+    window.Buffer = buffer.Buffer;
+    globalThis.Buffer = buffer.Buffer;
+  </script>
+
+  <!-- 2. Solana Web3.js -->
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 
   <style>
@@ -311,17 +318,17 @@
     
     const SOLANA_RPC = "https://solana-rpc.publicnode.com";
 
-    // Program IDs nativos de SPL Token
+    // Program IDs explícitos con new solanaWeb3.PublicKey(...)
     const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
     const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
-    // Cálculo ATA usando Uint8Array puro (Sin rastro de Buffer)
+    // Función ATA utilizando Buffer.from(...) para las semillas requeridas por Web3.js
     async function getAssociatedTokenAddress(mint, owner) {
       const res = await solanaWeb3.PublicKey.findProgramAddress(
         [
-          owner.toBytes(),
-          TOKEN_PROGRAM_ID.toBytes(),
-          mint.toBytes()
+          Buffer.from(owner.toBytes()),
+          Buffer.from(TOKEN_PROGRAM_ID.toBytes()),
+          Buffer.from(mint.toBytes())
         ],
         ASSOCIATED_TOKEN_PROGRAM_ID
       );
@@ -344,11 +351,11 @@
       });
     }
 
+    // Serialización correcta de la instrucción con Buffer para el monto de transferencia
     function createTransferInstruction(source, destination, owner, amount) {
-      const data = new Uint8Array(9);
-      data[0] = 3; // Instrucción de transferencia en SPL Token
-      const view = new DataView(data.buffer);
-      view.setBigUint64(1, BigInt(amount), true);
+      const data = Buffer.alloc(9);
+      data.writeUInt8(3, 0); // Instrucción de transferencia SPL (Index 3)
+      data.writeBigUInt64LE(BigInt(amount), 1); // Monto serializado en Little Endian
 
       return new solanaWeb3.TransactionInstruction({
         keys: [
@@ -415,7 +422,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS LIMPIO Y SIN BUFFER
+    // PROCESADOR DE COMPRAS ASEGURADO CON PUBLICKEYS Y BUFFER
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
