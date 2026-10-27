@@ -314,12 +314,12 @@
     const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
     const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
-    function getAssociatedTokenAddressSync(mint, owner) {
-      const [address] = solanaWeb3.PublicKey.findProgramAddressSync(
+    async function getAssociatedTokenAddress(mint, owner) {
+      const res = await solanaWeb3.PublicKey.findProgramAddress(
         [owner.toBytes(), TOKEN_PROGRAM_ID.toBytes(), mint.toBytes()],
         ASSOCIATED_TOKEN_PROGRAM_ID
       );
-      return address;
+      return res[0];
     }
 
     function createAssociatedTokenAccountInstruction(payer, associatedToken, owner, mint) {
@@ -409,7 +409,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS NATIVO (CREACIÓN AUTOMÁTICA DE CUENTAS ATA)
+    // PROCESADOR DE COMPRAS NATIVO CON ASYNC ATA
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Phantom Wallet.");
@@ -438,38 +438,33 @@
 
         alert(`Abriendo Phantom para confirmar el pago de ${costTokens.toLocaleString()} $VALOR...`);
 
-        const userATA = getAssociatedTokenAddressSync(mintPubkey, userPubkey);
-        const devATA = getAssociatedTokenAddressSync(mintPubkey, devPubkey);
-        const treasuryATA = getAssociatedTokenAddressSync(mintPubkey, treasuryPubkey);
-        const burnATA = getAssociatedTokenAddressSync(mintPubkey, burnPubkey);
+        const userATA = await getAssociatedTokenAddress(mintPubkey, userPubkey);
+        const devATA = await getAssociatedTokenAddress(mintPubkey, devPubkey);
+        const treasuryATA = await getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
+        const burnATA = await getAssociatedTokenAddress(mintPubkey, burnPubkey);
 
         const transaction = new solanaWeb3.Transaction();
 
-        // Verificar y crear cuenta ATA del usuario si no existe
         const userAccount = await connection.getAccountInfo(userATA);
         if (!userAccount) {
           transaction.add(createAssociatedTokenAccountInstruction(userPubkey, userATA, userPubkey, mintPubkey));
         }
 
-        // Verificar y crear cuenta ATA del Dev si no existe
         const devAccount = await connection.getAccountInfo(devATA);
         if (!devAccount) {
           transaction.add(createAssociatedTokenAccountInstruction(userPubkey, devATA, devPubkey, mintPubkey));
         }
 
-        // Verificar y crear cuenta ATA de Tesorería si no existe
         const treasuryAccount = await connection.getAccountInfo(treasuryATA);
         if (!treasuryAccount) {
           transaction.add(createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, treasuryPubkey, mintPubkey));
         }
 
-        // Verificar y crear cuenta ATA de Quema si no existe
         const burnAccount = await connection.getAccountInfo(burnATA);
         if (!burnAccount) {
           transaction.add(createAssociatedTokenAccountInstruction(userPubkey, burnATA, burnPubkey, mintPubkey));
         }
 
-        // Añadir instrucciones de transferencia para cada parte
         transaction.add(createTransferInstruction(userATA, devATA, userPubkey, devAmount));
         transaction.add(createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount));
         transaction.add(createTransferInstruction(userATA, burnATA, userPubkey, burnAmount));
