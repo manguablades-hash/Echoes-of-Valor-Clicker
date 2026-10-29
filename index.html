@@ -200,7 +200,7 @@
               <i data-lucide="flame" class="w-5 h-5 text-amber-400"></i>
               La Taberna del Aventurero (BSC)
             </h3>
-            <p class="text-xs text-slate-400">Gasta $VALOR en Smart Chain (Distribución: 40% Quema, 30% Tesorería, 30% Dev).</p>
+            <p class="text-xs text-slate-400">Gasta $VALOR en Smart Chain (Distribución: 30% Quema, 50% Tesorería, 20% Dev).</p>
           </div>
         </div>
 
@@ -264,7 +264,7 @@
         </div>
         <div>
           <h4 class="text-xs font-bold text-purple-300 uppercase tracking-wide">Recompensas Semanales de Tesorería</h4>
-          <p class="text-[11px] text-slate-300 mt-1">Todo lo acumulado en la Tesorería gracias a La Taberna se reparte <strong>semanalmente entre el Top 100</strong> del Leaderboard.</p>
+          <p class="text-[11px] text-slate-300 mt-1">Todo lo acumulado en la Tesorería (50% de La Taberna) se reparte <strong>semanalmente entre el Top 100</strong> del Leaderboard.</p>
         </div>
       </div>
 
@@ -304,19 +304,18 @@
     const db = getFirestore(app);
 
     // ==========================================================
-    // CONFIGURACIÓN REAL DE DIRECCIONES EN BNB SMART CHAIN (BSC)
+    // CONFIGURACIÓN REAL DE WALLETS Y TOKEN EN BNB SMART CHAIN
     // ==========================================================
-    const BSC_CHAIN_ID = "0x38"; // Mainnet BNB Smart Chain (56)
+    const BSC_CHAIN_ID = "0x38"; // 56 en decimal (BSC Mainnet)
     const TOKEN_CONTRACT_ADDRESS = "0x8b9e76cc382ae8fd50d804ec420d92eca302ffff";
     const WALLET_DEV = "0x49a2812e113a95C08B7f66Bf1dE562185551ecf7";
     const WALLET_TREASURY = "0x1AF7899B9E82805A3323527e55DCdE8EC59DaDfe";
-    const WALLET_BURN = "0x000000000000000000000000000000000000dEaD"; // Dirección estándar de quema en EVM
+    const WALLET_BURN = "0x000000000000000000000000000000000000dEaD"; // Dirección Quema EVM
 
     // ABI Estándar ERC-20
     const ERC20_ABI = [
       "function transfer(to address, value uint256) returns (bool)",
-      "function balanceOf(address owner) view returns (uint256)",
-      "function decimals() view returns (uint8)"
+      "function balanceOf(address owner) view returns (uint256)"
     ];
 
     let userState = {
@@ -342,7 +341,7 @@
     window.connectWallet = async function() {
       try {
         if (!window.ethereum) {
-          alert("Por favor instala MetaMask, Trust Wallet o una wallet compatible con EVM.");
+          alert("Por favor instala MetaMask o una wallet compatible con EVM.");
           return;
         }
 
@@ -352,7 +351,7 @@
             params: [{ chainId: BSC_CHAIN_ID }],
           });
         } catch (switchError) {
-          console.warn("Intento de cambio automático a red BSC:", switchError);
+          console.warn("No se pudo cambiar automáticamente a BSC:", switchError);
         }
 
         const provider = new ethers.BrowserProvider(window.ethereum);
@@ -384,10 +383,10 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS EN BNB SMART CHAIN
+    // PROCESADOR DE COMPRAS EN BNB SMART CHAIN CON LA NUEVA DISTRIBUCIÓN
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
-        alert("Primero conecta tu Wallet EVM.");
+        alert("Primero conecta tu Wallet de EVM.");
         return;
       }
 
@@ -401,32 +400,29 @@
         const signer = await provider.getSigner();
         const tokenContract = new ethers.Contract(TOKEN_CONTRACT_ADDRESS, ERC20_ABI, signer);
 
-        let decimals = 18;
-        try {
-          decimals = await tokenContract.decimals();
-        } catch (dErr) {
-          console.warn("No se pudo obtener decimales dinámicos, usando 18 por defecto", dErr);
-        }
-
+        const decimals = 18; // Si tu token usa 18 decimales
         const totalAmount = ethers.parseUnits(costTokens.toString(), decimals);
 
-        // Distribución: 30% Dev, 30% Tesorería, 40% Quema
-        const devAmount = (totalAmount * 30n) / 100n;
-        const treasuryAmount = (totalAmount * 30n) / 100n;
+        // NUEVA DISTRIBUCIÓN: 20% Dev, 50% Tesorería, 30% Quema
+        const devAmount = (totalAmount * 20n) / 100n;
+        const treasuryAmount = (totalAmount * 50n) / 100n;
         const burnAmount = totalAmount - devAmount - treasuryAmount;
 
-        alert(`Abriendo tu wallet para confirmar el pago de ${costTokens.toLocaleString()} $VALOR...`);
+        alert(`Abriendo tu wallet para confirmar las transacciones de ${costTokens.toLocaleString()} $VALOR...`);
 
+        // Transacción 1: Dev (20%)
         const txDev = await tokenContract.transfer(WALLET_DEV, devAmount);
         await txDev.wait();
 
+        // Transacción 2: Tesorería (50%)
         const txTreasury = await tokenContract.transfer(WALLET_TREASURY, treasuryAmount);
         await txTreasury.wait();
 
+        // Transacción 3: Quema (30%)
         const txBurn = await tokenContract.transfer(WALLET_BURN, burnAmount);
         await txBurn.wait();
 
-        alert(`¡Transacción confirmada en BNB Smart Chain con éxito!`);
+        alert(`¡Transacciones confirmadas en BNB Smart Chain con éxito!`);
 
         if (itemType === 'brebaje') {
           userState.boostUntil = Date.now() + (60 * 60 * 1000);
@@ -444,7 +440,7 @@
 
       } catch (e) {
         console.error("Error procesando la transacción en BSC:", e);
-        alert("Transacción cancelada o fallida: " + (e.reason || e.message || JSON.stringify(e)));
+        alert("Transacción cancelada o error: " + (e.reason || e.message || JSON.stringify(e)));
       }
     };
 
