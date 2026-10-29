@@ -29,7 +29,7 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Ethers.js para BNB Smart Chain -->
+  <!-- Ethers.js v6 para BNB Smart Chain -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 
   <style>
@@ -312,12 +312,6 @@
     const WALLET_TREASURY = "0x1AF7899B9E82805A3323527e55DCdE8EC59DaDfe";
     const WALLET_BURN = "0x000000000000000000000000000000000000dEaD"; // Dirección Quema EVM
 
-    // ABI Estándar ERC-20
-    const ERC20_ABI = [
-      "function transfer(to address, value uint256) returns (bool)",
-      "function balanceOf(address owner) view returns (uint256)"
-    ];
-
     let userState = {
       wallet: null,
       maxEnergy: 12,
@@ -383,7 +377,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS EN BNB SMART CHAIN CON LA NUEVA DISTRIBUCIÓN
+    // PROCESADOR DE COMPRAS CORREGIDO PARA ETHERS.JS V6 Y BSC
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Wallet de EVM.");
@@ -398,17 +392,27 @@
       try {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
-        const tokenContract = new ethers.Contract(TOKEN_CONTRACT_ADDRESS, ERC20_ABI, signer);
 
-        const decimals = 18; // Si tu token usa 18 decimales
+        // Dirección estandarizada con checksum
+        const tokenAddress = ethers.getAddress(TOKEN_CONTRACT_ADDRESS);
+
+        // ABI explícito en formato de array
+        const erc20Abi = [
+          "function transfer(address to, uint256 amount) returns (bool)",
+          "function balanceOf(address account) view returns (uint256)"
+        ];
+
+        const tokenContract = new ethers.Contract(tokenAddress, erc20Abi, signer);
+
+        const decimals = 18; // Estándar de tokens en Four.Meme
         const totalAmount = ethers.parseUnits(costTokens.toString(), decimals);
 
-        // NUEVA DISTRIBUCIÓN: 20% Dev, 50% Tesorería, 30% Quema
+        // DISTRIBUCIÓN: 20% Dev, 50% Tesorería, 30% Quema
         const devAmount = (totalAmount * 20n) / 100n;
         const treasuryAmount = (totalAmount * 50n) / 100n;
         const burnAmount = totalAmount - devAmount - treasuryAmount;
 
-        alert(`Abriendo tu wallet para confirmar las transacciones de ${costTokens.toLocaleString()} $VALOR...`);
+        alert(`Abriendo tu wallet para confirmar la compra de ${costTokens.toLocaleString()} $VALOR...`);
 
         // Transacción 1: Dev (20%)
         const txDev = await tokenContract.transfer(WALLET_DEV, devAmount);
