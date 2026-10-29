@@ -192,15 +192,15 @@
         </div>
       </div>
 
-      <!-- LA TABERNA DE CONTRATOS -->
+      <!-- LA TABERNA DEL AVENTURERO -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
         <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
           <div>
             <h3 class="font-bold text-slate-100 text-base flex items-center gap-2">
               <i data-lucide="flame" class="w-5 h-5 text-amber-400"></i>
-              La Taberna del Aventurero (BSC)
+              La Taberna del Aventurero (Bonding Phase)
             </h3>
-            <p class="text-xs text-slate-400">Gasta $VALOR en Smart Chain (Distribución: 30% Quema, 50% Tesorería, 20% Dev).</p>
+            <p class="text-xs text-slate-400">Adquiere suministros apoyando la curva de $VALOR en Four.Meme para migrar a PancakeSwap.</p>
           </div>
         </div>
 
@@ -215,8 +215,8 @@
               <h4 class="text-xs font-bold text-slate-200">Brebaje de Furia</h4>
               <p class="text-[11px] text-slate-400 mt-1">Multiplica x10 tu EXP en todos los taps durante 1 hora.</p>
             </div>
-            <button onclick="buyItem('brebaje')" class="mt-3 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition">
-              300,000 $VALOR
+            <button onclick="buyItem('brebaje')" class="mt-3 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition cursor-pointer">
+              Obtener (300k $VALOR)
             </button>
           </div>
 
@@ -230,8 +230,8 @@
               <h4 class="text-xs font-bold text-slate-200">Recarga de Elixir</h4>
               <p class="text-[11px] text-slate-400 mt-1">Recarga tu barra de energía a 12/12 al instante.</p>
             </div>
-            <button onclick="buyItem('elixir')" class="mt-3 w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition">
-              150,000 $VALOR
+            <button onclick="buyItem('elixir')" class="mt-3 w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition cursor-pointer">
+              Obtener (150k $VALOR)
             </button>
           </div>
 
@@ -245,8 +245,8 @@
               <h4 class="text-xs font-bold text-slate-200">Pase de Aventura</h4>
               <p class="text-[11px] text-slate-400 mt-1">Añade 5 boletos extra directamente para el sorteo de la Beta.</p>
             </div>
-            <button onclick="buyItem('pase')" class="mt-3 w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-1.5 rounded-lg text-xs transition">
-              500,000 $VALOR
+            <button onclick="buyItem('pase')" class="mt-3 w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-1.5 rounded-lg text-xs transition cursor-pointer">
+              Obtener (500k $VALOR)
             </button>
           </div>
         </div>
@@ -263,8 +263,8 @@
           <i data-lucide="gift" class="w-5 h-5"></i>
         </div>
         <div>
-          <h4 class="text-xs font-bold text-purple-300 uppercase tracking-wide">Recompensas Semanales de Tesorería</h4>
-          <p class="text-[11px] text-slate-300 mt-1">Todo lo acumulado en la Tesorería (50% de La Taberna) se reparte <strong>semanalmente entre el Top 100</strong> del Leaderboard.</p>
+          <h4 class="text-xs font-bold text-purple-300 uppercase tracking-wide">Impulsa la Curva (Meta 100%)</h4>
+          <p class="text-[11px] text-slate-300 mt-1">Cada interacción en el juego dirige volumen hacia la bonding curve para acelerar la migración a PancakeSwap.</p>
         </div>
       </div>
 
@@ -303,14 +303,9 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // ==========================================================
-    // CONFIGURACIÓN REAL DE WALLETS Y TOKEN EN BNB SMART CHAIN
-    // ==========================================================
-    const BSC_CHAIN_ID = "0x38"; // 56 en decimal (BSC Mainnet)
+    const BSC_CHAIN_ID = "0x38"; // BSC Mainnet
     const TOKEN_CONTRACT_ADDRESS = "0x8b9e76cc382ae8fd50d804ec420d92eca302ffff";
-    const WALLET_DEV = "0x49a2812e113a95C08B7f66Bf1dE562185551ecf7";
-    const WALLET_TREASURY = "0x1AF7899B9E82805A3323527e55DCdE8EC59DaDfe";
-    const WALLET_BURN = "0x000000000000000000000000000000000000dEaD"; // Dirección Quema EVM
+    const FOUR_MEME_URL = "https://four.meme/token/0x8b9e76cc382ae8fd50d804ec420d92eca302ffff";
 
     let userState = {
       wallet: null,
@@ -377,7 +372,7 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS CORREGIDO PARA ETHERS.JS V6 Y BSC
+    // FLUJO DE TABERNA ADAPTADO A LA BONDING CURVE (FOUR.MEME)
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
         alert("Primero conecta tu Wallet de EVM.");
@@ -385,66 +380,31 @@
       }
 
       let costTokens = 0;
-      if (itemType === 'brebaje') costTokens = 300000;
-      if (itemType === 'elixir') costTokens = 150000;
-      if (itemType === 'pase') costTokens = 500000;
+      let itemName = "";
+      if (itemType === 'brebaje') { costTokens = 300000; itemName = "Brebaje de Furia"; }
+      if (itemType === 'elixir') { costTokens = 150000; itemName = "Recarga de Elixir"; }
+      if (itemType === 'pase') { costTokens = 500000; itemName = "Pase de Aventura"; }
 
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
+      const confirmBuy = confirm(`Para adquirir [${itemName}] (${costTokens.toLocaleString()} $VALOR) y apoyar la migración de la Bonding Curve:\n\n1. Se abrirá la página oficial en Four.Meme para tu movimiento.\n2. Al confirmar tu operación, se aplicará el beneficio en tu cuenta del juego.`);
+      
+      if (confirmBuy) {
+        // Abrir Four.Meme en una pestaña nueva para que el usuario mueva el volumen de la curva
+        window.open(FOUR_MEME_URL, '_blank');
 
-        // Dirección estandarizada con checksum
-        const tokenAddress = ethers.getAddress(TOKEN_CONTRACT_ADDRESS);
-
-        // ABI explícito en formato de array
-        const erc20Abi = [
-          "function transfer(address to, uint256 amount) returns (bool)",
-          "function balanceOf(address account) view returns (uint256)"
-        ];
-
-        const tokenContract = new ethers.Contract(tokenAddress, erc20Abi, signer);
-
-        const decimals = 18; // Estándar de tokens en Four.Meme
-        const totalAmount = ethers.parseUnits(costTokens.toString(), decimals);
-
-        // DISTRIBUCIÓN: 20% Dev, 50% Tesorería, 30% Quema
-        const devAmount = (totalAmount * 20n) / 100n;
-        const treasuryAmount = (totalAmount * 50n) / 100n;
-        const burnAmount = totalAmount - devAmount - treasuryAmount;
-
-        alert(`Abriendo tu wallet para confirmar la compra de ${costTokens.toLocaleString()} $VALOR...`);
-
-        // Transacción 1: Dev (20%)
-        const txDev = await tokenContract.transfer(WALLET_DEV, devAmount);
-        await txDev.wait();
-
-        // Transacción 2: Tesorería (50%)
-        const txTreasury = await tokenContract.transfer(WALLET_TREASURY, treasuryAmount);
-        await txTreasury.wait();
-
-        // Transacción 3: Quema (30%)
-        const txBurn = await tokenContract.transfer(WALLET_BURN, burnAmount);
-        await txBurn.wait();
-
-        alert(`¡Transacciones confirmadas en BNB Smart Chain con éxito!`);
-
+        // Otorgar el beneficio de inmediato al aventurero como recompensa por apoyar la curva
         if (itemType === 'brebaje') {
           userState.boostUntil = Date.now() + (60 * 60 * 1000);
-          alert("¡Brebaje de Furia activado! Tienes 1 hora de x10 EXP.");
+          alert("🔥 ¡Brebaje de Furia activado en tu cuenta! Tienes 1 hora de x10 EXP.");
         } else if (itemType === 'elixir') {
           userState.currentEnergy = userState.maxEnergy;
-          alert("¡Energía recargada al 100%!");
+          alert("⚡ ¡Energía recargada al 100%!");
         } else if (itemType === 'pase') {
           userState.tickets += 5;
-          alert("¡Se han añadido +5 Tickets de Beta a tu cuenta!");
+          alert("🎟️ ¡Se han añadido +5 Tickets de Beta a tu cuenta!");
         }
 
         await saveCloudState();
         updateUI();
-
-      } catch (e) {
-        console.error("Error procesando la transacción en BSC:", e);
-        alert("Transacción cancelada o error: " + (e.reason || e.message || JSON.stringify(e)));
       }
     };
 
@@ -530,7 +490,7 @@
       checkEnergyRegen();
 
       if (userState.currentEnergy <= 0) {
-        alert("¡Energía agotada! Puedes esperar 2 horas o comprar una Recarga de Elixir en La Taberna.");
+        alert("¡Energía agotada! Puedes esperar 2 horas o adquirir suministros en La Taberna.");
         return;
       }
 
