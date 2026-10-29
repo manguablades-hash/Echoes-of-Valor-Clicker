@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Echoes of Valor: Daily Tap RPG</title>
+  <title>Echoes of Valor: Daily Tap RPG (BSC Edition)</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -29,19 +29,8 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- ========================================================== -->
-  <!-- 1. POLYFILL DE BUFFER ROBUSTO PARA EL NAVEGADOR Y GITHUB PAGES -->
-  <!-- ========================================================== -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
-  <script>
-    if (typeof window !== 'undefined') {
-      window.Buffer = window.Buffer || buffer.Buffer;
-      globalThis.Buffer = globalThis.Buffer || buffer.Buffer;
-    }
-  </script>
-
-  <!-- 2. Solana Web3.js cargado de forma síncrona -->
-  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+  <!-- Ethers.js para BNB Smart Chain -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 
   <style>
     @keyframes pulse-glow {
@@ -79,7 +68,7 @@
         </div>
         <div>
           <h1 class="font-bold text-lg leading-none bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">Echoes of Valor</h1>
-          <span class="text-xs text-slate-400">Daily Tap RPG • Solana Edition</span>
+          <span class="text-xs text-slate-400">Daily Tap RPG • BNB Chain Edition</span>
         </div>
       </div>
 
@@ -98,8 +87,8 @@
           <span class="hidden md:inline">X</span>
         </a>
 
-        <!-- BOTÓN DE COMPRAR $VALOR -->
-        <a href="https://pump.fun/coin/82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump" target="_blank" rel="noopener noreferrer" 
+        <!-- BOTÓN DE COMPRAR $VALOR (FOUR.MEME) -->
+        <a href="https://four.meme/token/0x8b9e76cc382ae8fd50d804ec420d92eca302ffff" target="_blank" rel="noopener noreferrer" 
            class="btn-buy-glow flex items-center gap-2 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black px-4 py-2 rounded-xl text-xs sm:text-sm transition-all transform hover:scale-105 active:scale-95 border border-emerald-300/50">
           <span class="flex h-2 w-2 relative">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-950 opacity-75"></span>
@@ -111,7 +100,7 @@
 
         <button id="connectWalletBtn" onclick="connectWallet()" class="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm transition shadow-lg shadow-amber-500/20">
           <i data-lucide="wallet" class="w-4 h-4"></i>
-          <span id="walletBtnText">Conectar Phantom</span>
+          <span id="walletBtnText">Conectar Wallet</span>
         </button>
       </div>
     </div>
@@ -126,7 +115,7 @@
       <!-- User Status Card -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex items-center justify-between">
         <div>
-          <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Wallet Conectada</span>
+          <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Wallet Conectada (BSC)</span>
           <div id="walletDisplay" class="font-mono text-sm text-slate-300">Desconectado</div>
         </div>
         <div id="activeBoostBadge" class="hidden bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3 py-1 rounded-full text-xs font-bold">
@@ -209,9 +198,9 @@
           <div>
             <h3 class="font-bold text-slate-100 text-base flex items-center gap-2">
               <i data-lucide="flame" class="w-5 h-5 text-amber-400"></i>
-              La Taberna del Aventurero
+              La Taberna del Aventurero (BSC)
             </h3>
-            <p class="text-xs text-slate-400">Gasta $VALOR en blockchain para potenciar tu progreso (40% Quema, 30% Tesorería, 30% Dev).</p>
+            <p class="text-xs text-slate-400">Gasta $VALOR en Smart Chain (Distribución: 40% Quema, 30% Tesorería, 30% Dev).</p>
           </div>
         </div>
 
@@ -296,7 +285,7 @@
     </div>
   </main>
 
-  <!-- Firebase & Solana Web3 Integration -->
+  <!-- Firebase & BNB Smart Chain (BSC) Integration -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -314,65 +303,21 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // CONFIGURACIÓN DE WALLETS Y TOKEN (SOLANA)
-    const TOKEN_MINT = "82bATDpH6hkyH2WnsPW27nRTjYkGYVdVH9dYJ6nnpump";
-    const WALLET_DEV = "58fEJ9Qqva5mCorBDNGdLmGn9LZZsKBk8HvnLeu8spR9";
-    const WALLET_TREASURY = "63fYVE4goxmeXbnP3E7XeGz64j1QtFBL7UPGASQcoPB4";
-    const WALLET_BURN = "1nc1nerator11111111111111111111111111111111"; // Incinerador oficial de Solana
-    
-    const SOLANA_RPC = "https://solana-rpc.publicnode.com";
+    // ==========================================================
+    // CONFIGURACIÓN REAL DE DIRECCIONES EN BNB SMART CHAIN (BSC)
+    // ==========================================================
+    const BSC_CHAIN_ID = "0x38"; // Mainnet BNB Smart Chain (56)
+    const TOKEN_CONTRACT_ADDRESS = "0x8b9e76cc382ae8fd50d804ec420d92eca302ffff";
+    const WALLET_DEV = "0x49a2812e113a95C08B7f66Bf1dE562185551ecf7";
+    const WALLET_TREASURY = "0x1AF7899B9E82805A3323527e55DCdE8EC59DaDfe";
+    const WALLET_BURN = "0x000000000000000000000000000000000000dEaD"; // Dirección estándar de quema en EVM
 
-    // Program IDs explícitos con new solanaWeb3.PublicKey(...)
-    const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
-    const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
-
-    // Función ATA utilizando Buffer global seguro para Web3.js
-    async function getAssociatedTokenAddress(mint, owner) {
-      const BufferClass = window.Buffer || globalThis.Buffer;
-      const res = await solanaWeb3.PublicKey.findProgramAddress(
-        [
-          BufferClass.from(owner.toBytes()),
-          BufferClass.from(TOKEN_PROGRAM_ID.toBytes()),
-          BufferClass.from(mint.toBytes())
-        ],
-        ASSOCIATED_TOKEN_PROGRAM_ID
-      );
-      return res[0];
-    }
-
-    function createAssociatedTokenAccountInstruction(payer, associatedToken, owner, mint) {
-      return new solanaWeb3.TransactionInstruction({
-        keys: [
-          { pubkey: payer, isSigner: true, isWritable: true },
-          { pubkey: associatedToken, isSigner: false, isWritable: true },
-          { pubkey: owner, isSigner: false, isWritable: false },
-          { pubkey: mint, isSigner: false, isWritable: false },
-          { pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false },
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        ],
-        programId: ASSOCIATED_TOKEN_PROGRAM_ID,
-        data: new Uint8Array(0),
-      });
-    }
-
-    // Serialización correcta de la instrucción con Buffer seguro
-    function createTransferInstruction(source, destination, owner, amount) {
-      const BufferClass = window.Buffer || globalThis.Buffer;
-      const data = BufferClass.alloc(9);
-      data.writeUInt8(3, 0); // Instrucción de transferencia SPL (Index 3)
-      data.writeBigUInt64LE(BigInt(amount), 1); // Monto serializado en Little Endian
-
-      return new solanaWeb3.TransactionInstruction({
-        keys: [
-          { pubkey: source, isSigner: false, isWritable: true },
-          { pubkey: destination, isSigner: false, isWritable: true },
-          { pubkey: owner, isSigner: true, isWritable: false },
-        ],
-        programId: TOKEN_PROGRAM_ID,
-        data: data,
-      });
-    }
+    // ABI Estándar ERC-20
+    const ERC20_ABI = [
+      "function transfer(to address, value uint256) returns (bool)",
+      "function balanceOf(address owner) view returns (uint256)",
+      "function decimals() view returns (uint8)"
+    ];
 
     let userState = {
       wallet: null,
@@ -396,16 +341,26 @@
 
     window.connectWallet = async function() {
       try {
-        if (!window.solana || !window.solana.isPhantom) {
-          alert("Por favor instala Phantom Wallet (Solana) para conectar tu cuenta.");
+        if (!window.ethereum) {
+          alert("Por favor instala MetaMask, Trust Wallet o una wallet compatible con EVM.");
           return;
         }
 
-        const response = await window.solana.connect();
-        const address = response.publicKey.toString();
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: BSC_CHAIN_ID }],
+          });
+        } catch (switchError) {
+          console.warn("Intento de cambio automático a red BSC:", switchError);
+        }
+
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await provider.send("eth_requestAccounts", []);
+        const address = accounts[0];
 
         userState.wallet = address;
-        document.getElementById("walletBtnText").innerText = address.substring(0, 4) + "..." + address.substring(address.length - 4);
+        document.getElementById("walletBtnText").innerText = address.substring(0, 6) + "..." + address.substring(address.length - 4);
         document.getElementById("walletDisplay").innerText = address;
 
         const refLink = `${window.location.origin}${window.location.pathname}?ref=${address}`;
@@ -415,12 +370,13 @@
         fetchLeaderboard();
       } catch (err) {
         console.error("Wallet error:", err);
+        alert("Error al conectar la wallet: " + (err.message || err));
       }
     };
 
     window.copyReferralLink = function() {
       if (!userState.wallet) {
-        alert("Primero conecta tu Phantom Wallet.");
+        alert("Primero conecta tu Wallet.");
         return;
       }
       const refLink = `${window.location.origin}${window.location.pathname}?ref=${userState.wallet}`;
@@ -428,10 +384,10 @@
       alert("¡Enlace de referido copiado al portapapeles! Compártelo con tus amigos.");
     };
 
-    // PROCESADOR DE COMPRAS ASEGURADO CON PUBLICKEYS Y BUFFER SEGURO
+    // PROCESADOR DE COMPRAS EN BNB SMART CHAIN
     window.buyItem = async function(itemType) {
       if (!userState.wallet) {
-        alert("Primero conecta tu Phantom Wallet.");
+        alert("Primero conecta tu Wallet EVM.");
         return;
       }
 
@@ -441,66 +397,36 @@
       if (itemType === 'pase') costTokens = 500000;
 
       try {
-        const connection = new solanaWeb3.Connection(SOLANA_RPC, 'confirmed');
-        const userPubkey = new solanaWeb3.PublicKey(userState.wallet);
-        const mintPubkey = new solanaWeb3.PublicKey(TOKEN_MINT);
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const tokenContract = new ethers.Contract(TOKEN_CONTRACT_ADDRESS, ERC20_ABI, signer);
 
-        const devPubkey = new solanaWeb3.PublicKey(WALLET_DEV);
-        const treasuryPubkey = new solanaWeb3.PublicKey(WALLET_TREASURY);
-        const burnPubkey = new solanaWeb3.PublicKey(WALLET_BURN);
-
-        const decimals = 6;
-        const totalAmountUnits = BigInt(costTokens) * BigInt(10 ** decimals);
-        const devAmount = (totalAmountUnits * BigInt(30)) / BigInt(100);
-        const treasuryAmount = (totalAmountUnits * BigInt(30)) / BigInt(100);
-        const burnAmount = totalAmountUnits - devAmount - treasuryAmount;
-
-        alert(`Abriendo Phantom para confirmar el pago de ${costTokens.toLocaleString()} $VALOR...`);
-
-        const userATA = await getAssociatedTokenAddress(mintPubkey, userPubkey);
-        const devATA = await getAssociatedTokenAddress(mintPubkey, devPubkey);
-        const treasuryATA = await getAssociatedTokenAddress(mintPubkey, treasuryPubkey);
-        const burnATA = await getAssociatedTokenAddress(mintPubkey, burnPubkey);
-
-        const transaction = new solanaWeb3.Transaction();
-
-        let userAccount = null;
-        try { userAccount = await connection.getAccountInfo(userATA); } catch (e) {}
-        if (!userAccount) {
-          transaction.add(createAssociatedTokenAccountInstruction(userPubkey, userATA, userPubkey, mintPubkey));
+        let decimals = 18;
+        try {
+          decimals = await tokenContract.decimals();
+        } catch (dErr) {
+          console.warn("No se pudo obtener decimales dinámicos, usando 18 por defecto", dErr);
         }
 
-        let devAccount = null;
-        try { devAccount = await connection.getAccountInfo(devATA); } catch (e) {}
-        if (!devAccount) {
-          transaction.add(createAssociatedTokenAccountInstruction(userPubkey, devATA, devPubkey, mintPubkey));
-        }
+        const totalAmount = ethers.parseUnits(costTokens.toString(), decimals);
 
-        let treasuryAccount = null;
-        try { treasuryAccount = await connection.getAccountInfo(treasuryATA); } catch (e) {}
-        if (!treasuryAccount) {
-          transaction.add(createAssociatedTokenAccountInstruction(userPubkey, treasuryATA, userPubkey, mintPubkey));
-        }
+        // Distribución: 30% Dev, 30% Tesorería, 40% Quema
+        const devAmount = (totalAmount * 30n) / 100n;
+        const treasuryAmount = (totalAmount * 30n) / 100n;
+        const burnAmount = totalAmount - devAmount - treasuryAmount;
 
-        let burnAccount = null;
-        try { burnAccount = await connection.getAccountInfo(burnATA); } catch (e) {}
-        if (!burnAccount) {
-          transaction.add(createAssociatedTokenAccountInstruction(userPubkey, burnATA, burnPubkey, mintPubkey));
-        }
+        alert(`Abriendo tu wallet para confirmar el pago de ${costTokens.toLocaleString()} $VALOR...`);
 
-        transaction.add(createTransferInstruction(userATA, devATA, userPubkey, devAmount));
-        transaction.add(createTransferInstruction(userATA, treasuryATA, userPubkey, treasuryAmount));
-        transaction.add(createTransferInstruction(userATA, burnATA, userPubkey, burnAmount));
+        const txDev = await tokenContract.transfer(WALLET_DEV, devAmount);
+        await txDev.wait();
 
-        transaction.feePayer = userPubkey;
-        
-        const { blockhash } = await connection.getLatestBlockhash('confirmed');
-        transaction.recentBlockhash = blockhash;
+        const txTreasury = await tokenContract.transfer(WALLET_TREASURY, treasuryAmount);
+        await txTreasury.wait();
 
-        const { signature } = await window.solana.signAndSendTransaction(transaction);
-        await connection.confirmTransaction(signature, 'confirmed');
+        const txBurn = await tokenContract.transfer(WALLET_BURN, burnAmount);
+        await txBurn.wait();
 
-        alert(`¡Transacción confirmada en Solana! (Sig: ${signature.substring(0, 8)}...)`);
+        alert(`¡Transacción confirmada en BNB Smart Chain con éxito!`);
 
         if (itemType === 'brebaje') {
           userState.boostUntil = Date.now() + (60 * 60 * 1000);
@@ -517,8 +443,8 @@
         updateUI();
 
       } catch (e) {
-        console.error("Error procesando la transacción:", e);
-        alert("Error en la transacción: " + (e.message || JSON.stringify(e)));
+        console.error("Error procesando la transacción en BSC:", e);
+        alert("Transacción cancelada o fallida: " + (e.reason || e.message || JSON.stringify(e)));
       }
     };
 
@@ -526,7 +452,7 @@
       if (!userState.wallet) return;
 
       try {
-        const docRef = doc(db, "players", userState.wallet);
+        const docRef = doc(db, "players", userState.wallet.toLowerCase());
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
@@ -539,8 +465,8 @@
           userState.referredBy = data.referredBy || null;
           userState.expToNextLevel = userState.level * 100;
         } else {
-          if (referrerFromUrl && referrerFromUrl !== userState.wallet) {
-            userState.referredBy = referrerFromUrl;
+          if (referrerFromUrl && referrerFromUrl.toLowerCase() !== userState.wallet.toLowerCase()) {
+            userState.referredBy = referrerFromUrl.toLowerCase();
           }
           await saveCloudState();
         }
@@ -555,9 +481,9 @@
       if (!userState.wallet) return;
 
       try {
-        const docRef = doc(db, "players", userState.wallet);
+        const docRef = doc(db, "players", userState.wallet.toLowerCase());
         await setDoc(docRef, {
-          wallet: userState.wallet,
+          wallet: userState.wallet.toLowerCase(),
           level: userState.level,
           exp: userState.exp,
           tickets: userState.tickets,
@@ -597,7 +523,7 @@
 
     window.handleTap = function(e) {
       if (!userState.wallet) {
-        alert("Por favor conecta tu Phantom Wallet para jugar.");
+        alert("Por favor conecta tu Wallet para jugar.");
         return;
       }
 
@@ -676,7 +602,7 @@
         let rank = 1;
         querySnapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          const displayId = data.wallet.length > 12 ? data.wallet.substring(0, 4) + "..." + data.wallet.substring(data.wallet.length - 4) : data.wallet;
+          const displayId = data.wallet.length > 12 ? data.wallet.substring(0, 6) + "..." + data.wallet.substring(data.wallet.length - 4) : data.wallet;
           
           const row = document.createElement("div");
           row.className = "flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/60 text-xs";
@@ -694,7 +620,7 @@
         });
 
         if (rank === 1) {
-          list.innerHTML = `<div class="text-center text-xs text-slate-500 py-10">¡Conecta Phantom y sé el primero en el ranking!</div>`;
+          list.innerHTML = `<div class="text-center text-xs text-slate-500 py-10">¡Conecta tu Wallet y sé el primero en el ranking!</div>`;
         }
       } catch (e) {
         console.warn("Error fetching leaderboard:", e);
